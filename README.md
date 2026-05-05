@@ -1,6 +1,6 @@
 # Frappe OTP Login
 
-Passwordless OTP login for [Frappe Framework](https://frappe.io/framework) v17+.
+Passwordless OTP login for [Frappe Framework](https://frappe.io/framework) v16+.
 
 Users log in with just their email, username, or phone number + a one-time verification code. No password required. This is not 2FA — it replaces password-based authentication entirely.
 

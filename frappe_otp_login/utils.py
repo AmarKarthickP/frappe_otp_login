@@ -9,19 +9,19 @@ def generate_otp() -> str:
 
 
 def store_otp(identifier: str, otp: str, expiry: int = 300) -> None:
-	frappe.cache.set(f"otp_login:{identifier}", otp, expires_in_sec=expiry)
+	frappe.cache.set_value(f"otp_login:{identifier}", otp, expires_in_sec=expiry)
 
 
 def get_stored_otp(identifier: str) -> str | None:
-	return frappe.cache.get(f"otp_login:{identifier}")
+	return frappe.cache.get_value(f"otp_login:{identifier}")
 
 
 def delete_stored_otp(identifier: str) -> None:
-	frappe.cache.delete(f"otp_login:{identifier}")
+	frappe.cache.delete_value(f"otp_login:{identifier}")
 
 
 def check_rate_limit(identifier: str) -> bool:
-	key = f"otp_login_rate:{identifier}"
+	key = frappe.cache.make_key(f"otp_login_rate:{identifier}")
 	count = frappe.cache.incrby(key, 1)
 	if count == 1:
 		frappe.cache.expire(key, 900)
@@ -29,7 +29,7 @@ def check_rate_limit(identifier: str) -> bool:
 
 
 def check_failure_count(identifier: str) -> bool:
-	key = f"otp_login_fail:{identifier}"
+	key = frappe.cache.make_key(f"otp_login_fail:{identifier}")
 	count = frappe.cache.incrby(key, 1)
 	if count == 1:
 		frappe.cache.expire(key, 300)
