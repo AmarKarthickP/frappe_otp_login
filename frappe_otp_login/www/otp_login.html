@@ -1,0 +1,230 @@
+{% extends "templates/web.html" %}
+
+{% block head_include %}
+{{ include_style('login.bundle.css') }}
+<style>
+	.otp-step { display: none; }
+	.otp-step.active { display: block; }
+	#otp-code-input {
+		letter-spacing: 8px;
+		font-size: 24px;
+		text-align: center;
+		font-weight: bold;
+	}
+	.resend-otp {
+		display: none;
+		margin-top: 8px;
+	}
+	.resend-otp.visible { display: block; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div>
+	<noscript>
+		<div class="text-center my-5">
+			<h4>{{ _("Javascript is disabled on your browser") }}</h4>
+		</div>
+	</noscript>
+
+	<section class="for-otp-login">
+		<div class="page-card-head">
+			<img class="app-logo" src="{{ logo }}">
+			<h4>{{ _('Login to {0}').format(app_name or _("Frappe")) }}</h4>
+		</div>
+
+		<div class="login-content page-card">
+			<!-- Step 1: Enter identifier -->
+			<div id="step-identifier" class="otp-step active">
+				<form id="form-send-otp" role="form">
+					<div class="page-card-body">
+						<div class="form-group">
+							<label class="form-label sr-only" for="otp-identifier">{{ _("Email or Phone") }}</label>
+							<div class="email-field">
+								<input type="text" id="otp-identifier" class="form-control"
+									placeholder="{{ _('Email, username, or phone number') }}"
+									required autofocus autocomplete="username">
+								<svg class="field-icon email-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+									xmlns="http://www.w3.org/2000/svg">
+									<use class="es-lock" href="#es-line-email"></use>
+								</svg>
+							</div>
+						</div>
+					</div>
+					<div class="page-card-actions">
+						<button type="submit" class="btn btn-sm btn-primary btn-block" id="btn-send-otp">
+							{{ _("Send OTP") }}
+						</button>
+					</div>
+				</form>
+				<p class="text-center sign-up-message">
+					<a href="/login">{{ _("Back to password login") }}</a>
+				</p>
+			</div>
+
+			<!-- Step 2: Enter OTP -->
+			<div id="step-verify" class="otp-step">
+				<form id="form-verify-otp" role="form">
+					<div class="page-card-body">
+						<p class="text-muted text-center" id="otp-sent-to"></p>
+						<div class="form-group">
+							<label class="form-label sr-only" for="otp-code-input">{{ _("Verification Code") }}</label>
+							<div class="email-field">
+								<input type="text" id="otp-code-input" class="form-control"
+									placeholder="000000" maxlength="6" required inputmode="numeric"
+									autocomplete="one-time-code">
+								<svg class="field-icon email-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+									xmlns="http://www.w3.org/2000/svg">
+									<use class="es-lock" href="#es-line-lock"></use>
+								</svg>
+							</div>
+						</div>
+					</div>
+					<div class="page-card-actions">
+						<button type="submit" class="btn btn-sm btn-primary btn-block" id="btn-verify-otp">
+							{{ _("Verify") }}
+						</button>
+					</div>
+				</form>
+				<p class="resend-otp text-center sign-up-message" id="resend-section">
+					<a href="#" id="btn-resend-otp">{{ _("Resend OTP") }}</a>
+					<span class="text-muted" id="resend-timer"></span>
+				</p>
+				<p class="text-center sign-up-message">
+					<a href="#" id="btn-back-to-identifier">{{ _("Use a different identifier") }}</a>
+				</p>
+			</div>
+
+			<div id="otp-message" class="page-card-body text-center" style="display:none;">
+				<p id="otp-message-text"></p>
+			</div>
+		</div>
+	</section>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+frappe.ready(function() {
+	let current_identifier = '';
+
+	function show_step(step_id) {
+		document.querySelectorAll('.otp-step').forEach(s => s.classList.remove('active'));
+		document.getElementById(step_id).classList.add('active');
+	}
+
+	function show_message(text, is_error) {
+		const msg = document.getElementById('otp-message');
+		const msg_text = document.getElementById('otp-message-text');
+		msg_text.textContent = text;
+		msg_text.className = is_error ? 'text-danger' : 'text-success';
+		msg.style.display = 'block';
+	}
+
+	function hide_message() {
+		document.getElementById('otp-message').style.display = 'none';
+	}
+
+	function start_resend_timer() {
+		let seconds = 60;
+		const timer = document.getElementById('resend-timer');
+		const resend_section = document.getElementById('resend-section');
+		resend_section.classList.add('visible');
+		timer.textContent = ` (${seconds}s)`;
+		document.getElementById('btn-resend-otp').style.display = 'none';
+
+		const interval = setInterval(() => {
+			seconds--;
+			if (seconds <= 0) {
+				clearInterval(interval);
+				timer.textContent = '';
+				document.getElementById('btn-resend-otp').style.display = '';
+			} else {
+				timer.textContent = ` (${seconds}s)`;
+			}
+		}, 1000);
+	}
+
+	document.getElementById('form-send-otp').addEventListener('submit', function(e) {
+		e.preventDefault();
+		hide_message();
+
+		const identifier = document.getElementById('otp-identifier').value.trim();
+		if (!identifier) return;
+
+		const btn = document.getElementById('btn-send-otp');
+		btn.disabled = true;
+		btn.textContent = '{{ _("Sending...") }}';
+
+		frappe.call({
+			method: 'frappe_otp_login.api.send_otp',
+			args: { identifier: identifier },
+			type: 'POST',
+			callback: function(r) {
+				btn.disabled = false;
+				btn.textContent = '{{ _("Send OTP") }}';
+
+				if (r.exc) {
+					show_message(r._server_messages || '{{ _("Failed to send OTP") }}', true);
+					return;
+				}
+
+				current_identifier = identifier;
+				document.getElementById('otp-sent-to').textContent =
+					'{{ _("OTP sent to") }} ' + identifier;
+				show_step('step-verify');
+				document.getElementById('otp-code-input').focus();
+				start_resend_timer();
+			}
+		});
+	});
+
+	document.getElementById('form-verify-otp').addEventListener('submit', function(e) {
+		e.preventDefault();
+		hide_message();
+
+		const otp = document.getElementById('otp-code-input').value.trim();
+		if (!otp) return;
+
+		const btn = document.getElementById('btn-verify-otp');
+		btn.disabled = true;
+		btn.textContent = '{{ _("Verifying...") }}';
+
+		frappe.call({
+			method: 'frappe_otp_login.api.verify_otp',
+			args: { identifier: current_identifier, otp: otp },
+			type: 'POST',
+			callback: function(r) {
+				btn.disabled = false;
+				btn.textContent = '{{ _("Verify") }}';
+
+				if (r.exc) {
+					show_message(r._server_messages || '{{ _("Verification failed") }}', true);
+					document.getElementById('otp-code-input').value = '';
+					document.getElementById('otp-code-input').focus();
+					return;
+				}
+
+				if (r.message) {
+					window.location.href = r.message.redirect_to || '/desk';
+				}
+			}
+		});
+	});
+
+	document.getElementById('btn-resend-otp').addEventListener('click', function(e) {
+		e.preventDefault();
+		hide_message();
+		show_step('step-identifier');
+	});
+
+	document.getElementById('btn-back-to-identifier').addEventListener('click', function(e) {
+		e.preventDefault();
+		hide_message();
+		show_step('step-identifier');
+	});
+});
+</script>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
