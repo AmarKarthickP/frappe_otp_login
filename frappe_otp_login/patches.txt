@@ -1,0 +1,2 @@
+[post_model_sync]
+frappe_otp_login.patches.create_presets.execute
