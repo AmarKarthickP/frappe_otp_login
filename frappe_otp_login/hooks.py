@@ -14,6 +14,6 @@ add_to_apps_screen = [
 		"logo": "/assets/frappe_otp_login/images/logo.svg",
 		"title": "OTP Login",
 		"route": "/app/otp-login-settings",
-		"has_permission": "frappe_otp_login.otp_login.doctype.otp_login_settings.otp_login_settings.has_otp_settings_permission"
+		"has_permission": "frappe_otp_login.api.has_app_permission"
 	}
 ]

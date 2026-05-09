@@ -2,6 +2,12 @@ import frappe
 from frappe import _
 
 from frappe_otp_login.utils import (
+
+
+def has_app_permission():
+	"""Permission check for desk icon visibility — System Manager only."""
+	return "System Manager" in frappe.get_roles()
+
 	check_failure_count,
 	check_rate_limit,
 	delete_stored_otp,

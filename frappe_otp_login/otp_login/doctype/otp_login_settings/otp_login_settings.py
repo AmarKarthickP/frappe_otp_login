@@ -32,8 +32,3 @@ class OTPLoginSettings(Document):
 		if not settings.enabled:
 			return []
 		return [c for c in settings.http_channels if c.enabled]
-
-
-def has_otp_settings_permission():
-	"""Permission check for the desk icon — System Manager only."""
-	return "System Manager" in frappe.get_roles()
