@@ -18,7 +18,7 @@ def execute():
 	ntfy.content_type = "Raw (text/plain)"
 	ntfy.message_template = "Your OTP code is {{ otp }}"
 
-	# Generic Indian SMS Provider — GET with query params
+	# Generic Indian SMS Provider — GET with query params (save first, add params later)
 	sms = settings.append("http_channels")
 	sms.channel_name = "Generic Indian SMS Provider"
 	sms.enabled = 0
@@ -30,18 +30,26 @@ def execute():
 	sms.otp_param = "message"
 	sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"
 
-	sms_params = [
-		("authkey", "YOUR_AUTH_KEY"),
-		("sender", "SENDERID"),
-		("route", "Transactional"),
-		("country", "91"),
-		("DLT_TE_ID", "YOUR_DLT_ID"),
-	]
-	for key, val in sms_params:
-		p = sms.append("parameters")
-		p.key = key
-		p.value = val
-		p.is_header = 0
+	settings.save()
+	frappe.db.commit()
+
+	# Reload and add SMS parameters to the saved channel
+	sms_name = sms.name
+	settings = frappe.get_single("OTP Login Settings")
+	for channel in settings.http_channels:
+		if channel.name == sms_name:
+			for key, val in [
+				("authkey", "YOUR_AUTH_KEY"),
+				("sender", "SENDERID"),
+				("route", "Transactional"),
+				("country", "91"),
+				("DLT_TE_ID", "YOUR_DLT_ID"),
+			]:
+				p = channel.append("parameters")
+				p.key = key
+				p.value = val
+				p.is_header = 0
+			break
 
 	settings.save()
 	frappe.db.commit()
