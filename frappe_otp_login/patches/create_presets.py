@@ -15,6 +15,7 @@ def execute():
 	ntfy.method = "POST"
 	ntfy.url = "https://ntfy.sh/your-topic"
 	ntfy.auth_type = "None"
+	ntfy.identifier_label = "Subscribed Topic"
 	ntfy.content_type = "Raw (text/plain)"
 	ntfy.message_template = "Your OTP code is {{ otp }}"
 
@@ -26,6 +27,7 @@ def execute():
 	sms.url = "https://api.example.com/sendotp"
 	sms.auth_type = "None"
 	sms.content_type = "application/x-www-form-urlencoded"
+	sms.identifier_label = "Phone Number"
 	sms.recipient_param = "mobiles"
 	sms.otp_param = "message"
 	sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"

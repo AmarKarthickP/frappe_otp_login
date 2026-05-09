@@ -19,8 +19,41 @@ def has_app_permission():
 	return "System Manager" in frappe.get_roles()
 
 
+@frappe.whitelist(allow_guest=True)
+def get_available_channels():
+	"""Return list of enabled OTP channels for the login page."""
+	from frappe_otp_login.otp_login.doctype.otp_login_settings.otp_login_settings import (
+		OTPLoginSettings,
+	)
+
+	settings = frappe.get_single("OTP Login Settings")
+	if not settings.enabled:
+		return []
+
+	channels = []
+
+	if settings.email_enabled:
+		channels.append({
+			"type": "email",
+			"name": "Email",
+			"label": "Email",
+			"identifier_label": "Email Address",
+		})
+
+	for c in settings.http_channels:
+		if c.enabled:
+			channels.append({
+				"type": "http",
+				"name": c.channel_name,
+				"label": c.channel_name,
+				"identifier_label": c.identifier_label or "Identifier",
+			})
+
+	return channels
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def send_otp(identifier: str) -> dict:
+def send_otp(identifier: str, channel: str | None = None) -> dict:
 	identifier = identifier.strip().lower()
 
 	if not check_rate_limit(identifier):
@@ -33,24 +66,32 @@ def send_otp(identifier: str) -> dict:
 	otp = generate_otp()
 	store_otp(identifier, otp)
 
-	channel = frappe.db.get_single_value("OTP Login Settings", "default_channel") or "Email"
+	settings = frappe.get_single("OTP Login Settings")
+	sent = False
 
-	if channel == "HTTP":
+	if channel == "Email" or (not channel and settings.email_enabled):
+		user_email = frappe.db.get_value("User", user, "email")
+		if user_email:
+			try:
+				send_otp_email(user_email, otp)
+				sent = True
+			except Exception:
+				frappe.log_error(title="OTP Login: Email send failed", message=frappe.get_traceback())
+
+	if channel and channel != "Email":
+		try:
+			send_otp_http(identifier, otp, channel_name=channel)
+			sent = True
+		except Exception:
+			frappe.log_error(title="OTP Login: HTTP send failed", message=frappe.get_traceback())
+	elif not channel:
 		try:
 			send_otp_http(identifier, otp)
 		except Exception:
-			frappe.log_error(title="OTP Login: HTTP send failed", message=frappe.get_traceback())
-			frappe.throw(_("Failed to send OTP. Please try again."))
-	else:
-		user_email = frappe.db.get_value("User", user, "email")
-		if not user_email:
-			frappe.throw(_("User has no email address configured."))
+			pass  # already logged in send_otp_http
 
-		try:
-			send_otp_email(user_email, otp)
-		except Exception:
-			frappe.log_error(title="OTP Login: Failed to send email", message=frappe.get_traceback())
-			frappe.throw(_("Failed to send OTP email. Please try again."))
+	if not sent:
+		frappe.throw(_("No OTP channel is enabled. Please contact the administrator."))
 
 	return {"message": "OTP sent", "identifier": identifier}
 

@@ -16,6 +16,20 @@
 		margin-top: 8px;
 	}
 	.resend-otp.visible { display: block; }
+	.channel-option {
+		padding: 10px 14px;
+		border: 1px solid var(--border-color, #ddd);
+		border-radius: 6px;
+		margin-bottom: 8px;
+		cursor: pointer;
+		transition: border-color 0.2s;
+	}
+	.channel-option:hover { border-color: var(--primary, #2490ef); }
+	.channel-option.selected {
+		border-color: var(--primary, #2490ef);
+		background: var(--bg-light, #f4f8fc);
+	}
+	.channel-option input[type="radio"] { margin-right: 8px; }
 </style>
 {% endblock %}
 
@@ -34,21 +48,23 @@
 		</div>
 
 		<div class="login-content page-card">
-			<!-- Step 1: Enter identifier -->
+			<!-- Step 1: Enter identifier + choose channel -->
 			<div id="step-identifier" class="otp-step active">
 				<form id="form-send-otp" role="form">
 					<div class="page-card-body">
 						<div class="form-group">
-							<label class="form-label sr-only" for="otp-identifier">{{ _("Email or Phone") }}</label>
+							<label class="form-label" for="otp-identifier" id="identifier-label">
+								{{ _("Email, username, or phone number") }}
+							</label>
 							<div class="email-field">
 								<input type="text" id="otp-identifier" class="form-control"
-									placeholder="{{ _('Email, username, or phone number') }}"
+									placeholder="{{ _('Enter your identifier') }}"
 									required autofocus autocomplete="username">
-								<svg class="field-icon email-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
-									xmlns="http://www.w3.org/2000/svg">
-									<use class="es-lock" href="#es-line-email"></use>
-								</svg>
 							</div>
+						</div>
+						<div id="channel-picker" style="display:none;">
+							<label class="form-label">{{ _("How should we send the OTP?") }}</label>
+							<div id="channel-options"></div>
 						</div>
 					</div>
 					<div class="page-card-actions">
@@ -73,10 +89,6 @@
 								<input type="text" id="otp-code-input" class="form-control"
 									placeholder="000000" maxlength="6" required inputmode="numeric"
 									autocomplete="one-time-code">
-								<svg class="field-icon email-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
-									xmlns="http://www.w3.org/2000/svg">
-									<use class="es-lock" href="#es-line-lock"></use>
-								</svg>
 							</div>
 						</div>
 					</div>
@@ -107,6 +119,8 @@
 <script>
 frappe.ready(function() {
 	let current_identifier = '';
+	let selected_channel = null;
+	let available_channels = [];
 
 	function show_step(step_id) {
 		document.querySelectorAll('.otp-step').forEach(s => s.classList.remove('active'));
@@ -130,7 +144,7 @@ frappe.ready(function() {
 		const timer = document.getElementById('resend-timer');
 		const resend_section = document.getElementById('resend-section');
 		resend_section.classList.add('visible');
-		timer.textContent = ` (${seconds}s)`;
+		timer.textContent = ' (' + seconds + 's)';
 		document.getElementById('btn-resend-otp').style.display = 'none';
 
 		const interval = setInterval(() => {
@@ -140,9 +154,64 @@ frappe.ready(function() {
 				timer.textContent = '';
 				document.getElementById('btn-resend-otp').style.display = '';
 			} else {
-				timer.textContent = ` (${seconds}s)`;
+				timer.textContent = ' (' + seconds + 's)';
 			}
 		}, 1000);
+	}
+
+	// Load available channels on page load
+	frappe.call({
+		method: 'frappe_otp_login.api.get_available_channels',
+		type: 'GET',
+		callback: function(r) {
+			if (!r.exc && r.message) {
+				available_channels = r.message;
+				render_channels();
+			}
+		}
+	});
+
+	function render_channels() {
+		const picker = document.getElementById('channel-picker');
+		const options_container = document.getElementById('channel-options');
+
+		if (available_channels.length <= 1) {
+			picker.style.display = 'none';
+			if (available_channels.length === 1) {
+				selected_channel = available_channels[0];
+				update_identifier_label(selected_channel);
+			}
+			return;
+		}
+
+		picker.style.display = 'block';
+		options_container.innerHTML = '';
+
+		available_channels.forEach(function(ch, idx) {
+			const div = document.createElement('div');
+			div.className = 'channel-option' + (idx === 0 ? ' selected' : '');
+			div.innerHTML = '<input type="radio" name="otp-channel" value="' + ch.name + '"'
+				+ (idx === 0 ? ' checked' : '') + '> ' + ch.label;
+			div.addEventListener('click', function() {
+				document.querySelectorAll('.channel-option').forEach(d => d.classList.remove('selected'));
+				div.classList.add('selected');
+				div.querySelector('input').checked = true;
+				selected_channel = ch;
+				update_identifier_label(ch);
+			});
+			options_container.appendChild(div);
+		});
+
+		selected_channel = available_channels[0];
+		update_identifier_label(selected_channel);
+	}
+
+	function update_identifier_label(ch) {
+		const label = document.getElementById('identifier-label');
+		label.textContent = ch.identifier_label || '{{ _("Email, username, or phone number") }}';
+		// Also update placeholder
+		const input = document.getElementById('otp-identifier');
+		input.placeholder = ch.identifier_label || '{{ _("Enter your identifier") }}';
 	}
 
 	document.getElementById('form-send-otp').addEventListener('submit', function(e) {
@@ -156,9 +225,14 @@ frappe.ready(function() {
 		btn.disabled = true;
 		btn.textContent = '{{ _("Sending...") }}';
 
+		const args = { identifier: identifier };
+		if (selected_channel && selected_channel.name !== 'Email') {
+			args.channel = selected_channel.name;
+		}
+
 		frappe.call({
 			method: 'frappe_otp_login.api.send_otp',
-			args: { identifier: identifier },
+			args: args,
 			type: 'POST',
 			callback: function(r) {
 				btn.disabled = false;
@@ -170,8 +244,9 @@ frappe.ready(function() {
 				}
 
 				current_identifier = identifier;
+				const ch_name = selected_channel ? selected_channel.label : '{{ _("your identifier") }}';
 				document.getElementById('otp-sent-to').textContent =
-					'{{ _("OTP sent to") }} ' + identifier;
+					'{{ _("OTP sent via") }} ' + ch_name + ' {{ _("to") }} ' + identifier;
 				show_step('step-verify');
 				document.getElementById('otp-code-input').focus();
 				start_resend_timer();

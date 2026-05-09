@@ -75,13 +75,15 @@ def send_otp_email(email: str, otp: str) -> None:
 	)
 
 
-def send_otp_http(identifier: str, otp: str) -> None:
-	"""Send OTP to all enabled HTTP channels."""
+def send_otp_http(identifier: str, otp: str, channel_name: str | None = None) -> None:
+	"""Send OTP to all enabled HTTP channels, or a specific one if channel_name is given."""
 	from frappe_otp_login.otp_login.doctype.otp_login_settings.otp_login_settings import (
 		OTPLoginSettings,
 	)
 
 	channels = OTPLoginSettings.get_enabled_channels()
+	if channel_name:
+		channels = [c for c in channels if c.channel_name == channel_name]
 	if not channels:
 		frappe.throw(_("No HTTP channels are enabled in OTP Login Settings."))
 

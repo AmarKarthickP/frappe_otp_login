@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
-  "default_channel",
+  "email_enabled",
   "email_section",
   "email_status",
   "smtp_server",
@@ -23,12 +23,10 @@
    "label": "Enable OTP Login"
   },
   {
-   "default": "Email",
-   "fieldname": "default_channel",
-   "fieldtype": "Select",
-   "label": "Default Channel",
-   "options": "Email\nHTTP",
-   "reqd": 1
+   "default": "1",
+   "fieldname": "email_enabled",
+   "fieldtype": "Check",
+   "label": "Email OTP"
   },
   {
    "fieldname": "email_section",

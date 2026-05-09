@@ -8,6 +8,8 @@ app_license = "GPL-3.0-or-later"
 after_install = "frappe_otp_login.setup.after_install"
 before_uninstall = "frappe_otp_login.setup.before_uninstall"
 
+web_include_js = ["/assets/frappe_otp_login/js/login_button.js"]
+
 add_to_apps_screen = [
 	{
 		"name": "otp_login",
