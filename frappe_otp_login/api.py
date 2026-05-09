@@ -9,6 +9,7 @@ from frappe_otp_login.utils import (
 	generate_otp,
 	get_stored_otp,
 	send_otp_email,
+	send_otp_http,
 	store_otp,
 )
 
@@ -27,15 +28,24 @@ def send_otp(identifier: str) -> dict:
 	otp = generate_otp()
 	store_otp(identifier, otp)
 
-	user_email = frappe.db.get_value("User", user, "email")
-	if not user_email:
-		frappe.throw(_("User has no email address configured."))
+	channel = frappe.db.get_single_value("OTP Login Settings", "default_channel") or "Email"
 
-	try:
-		send_otp_email(user_email, otp)
-	except Exception:
-		frappe.log_error(title="OTP Login: Failed to send email", message=frappe.get_traceback())
-		frappe.throw(_("Failed to send OTP email. Please try again."))
+	if channel == "HTTP":
+		try:
+			send_otp_http(identifier, otp)
+		except Exception:
+			frappe.log_error(title="OTP Login: HTTP send failed", message=frappe.get_traceback())
+			frappe.throw(_("Failed to send OTP. Please try again."))
+	else:
+		user_email = frappe.db.get_value("User", user, "email")
+		if not user_email:
+			frappe.throw(_("User has no email address configured."))
+
+		try:
+			send_otp_email(user_email, otp)
+		except Exception:
+			frappe.log_error(title="OTP Login: Failed to send email", message=frappe.get_traceback())
+			frappe.throw(_("Failed to send OTP email. Please try again."))
 
 	return {"message": "OTP sent", "identifier": identifier}
 

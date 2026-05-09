@@ -1,0 +1,46 @@
+{
+ "actions": [],
+ "creation": "2026-05-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "key",
+  "value",
+  "is_header"
+ ],
+ "fields": [
+  {
+   "fieldname": "key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Key",
+   "reqd": 1
+  },
+  {
+   "fieldname": "value",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Value",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_header",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Header"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OTP Login",
+ "name": "OTP HTTP Channel Parameter",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

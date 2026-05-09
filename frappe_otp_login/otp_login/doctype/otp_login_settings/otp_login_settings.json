@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "creation": "2026-05-09 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "default_channel",
+  "email_section",
+  "email_status",
+  "smtp_server",
+  "smtp_port",
+  "column_break_email",
+  "smtp_sender",
+  "http_channels_section",
+  "http_channels"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enable OTP Login"
+  },
+  {
+   "default": "Email",
+   "fieldname": "default_channel",
+   "fieldtype": "Select",
+   "label": "Default Channel",
+   "options": "Email\nHTTP",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email_section",
+   "fieldtype": "Section Break",
+   "label": "Email Settings (SMTP)"
+  },
+  {
+   "fieldname": "email_status",
+   "fieldtype": "Data",
+   "label": "Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "smtp_server",
+   "fieldtype": "Data",
+   "label": "SMTP Server",
+   "read_only": 1
+  },
+  {
+   "fieldname": "smtp_port",
+   "fieldtype": "Data",
+   "label": "Port",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_email",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "smtp_sender",
+   "fieldtype": "Data",
+   "label": "Default Sender",
+   "read_only": 1
+  },
+  {
+   "fieldname": "http_channels_section",
+   "fieldtype": "Section Break",
+   "label": "HTTP Channels"
+  },
+  {
+   "fieldname": "http_channels",
+   "fieldtype": "Table",
+   "label": "HTTP Channels",
+   "options": "OTP HTTP Channel"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OTP Login",
+ "name": "OTP Login Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "enabled"
+}
