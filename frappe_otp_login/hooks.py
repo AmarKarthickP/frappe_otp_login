@@ -11,7 +11,7 @@ before_uninstall = "frappe_otp_login.setup.before_uninstall"
 add_to_apps_screen = [
 	{
 		"name": "otp_login",
-		"logo": "",
+		"logo": "/assets/frappe_otp_login/images/logo.svg",
 		"title": "OTP Login",
 		"route": "/app/otp-login-settings",
 		"has_permission": "frappe_otp_login.otp_login.doctype.otp_login_settings.otp_login_settings.has_otp_settings_permission"
