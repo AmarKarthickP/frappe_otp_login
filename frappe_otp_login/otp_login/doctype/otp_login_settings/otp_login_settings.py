@@ -99,16 +99,19 @@ def _create_user_field(fieldname):
 
 def _add_field_to_form_layout(fieldname):
 	"""Ensure the custom field appears on the User form."""
-	if frappe.db.exists("Customize Form", {"doc_type": "User"}):
-		cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
-	else:
-		cf = frappe.new_doc("Customize Form")
-		cf.doc_type = "User"
-	already = any(f.fieldname == fieldname for f in cf.fields)
-	if not already:
-		cf.append("fields", {"fieldname": fieldname})
-		cf.save(ignore_permissions=True)
-		frappe.db.commit()
+	try:
+		if frappe.db.exists("Customize Form", {"doc_type": "User"}):
+			cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
+		else:
+			cf = frappe.new_doc("Customize Form")
+			cf.doc_type = "User"
+		already = any(f.fieldname == fieldname for f in cf.fields)
+		if not already:
+			cf.append("fields", {"fieldname": fieldname})
+			cf.save(ignore_permissions=True)
+			frappe.db.commit()
+	except Exception:
+		pass  # Customize Form table may not exist; field is still usable via API
 
 
 def _delete_user_field(fieldname):
@@ -117,8 +120,11 @@ def _delete_user_field(fieldname):
 
 
 def _remove_field_from_form_layout(fieldname):
-	if frappe.db.exists("Customize Form", {"doc_type": "User"}):
-		cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
-		cf.fields = [f for f in cf.fields if f.fieldname != fieldname]
-		cf.save(ignore_permissions=True)
-		frappe.db.commit()
+	try:
+		if frappe.db.exists("Customize Form", {"doc_type": "User"}):
+			cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
+			cf.fields = [f for f in cf.fields if f.fieldname != fieldname]
+			cf.save(ignore_permissions=True)
+			frappe.db.commit()
+	except Exception:
+		pass
