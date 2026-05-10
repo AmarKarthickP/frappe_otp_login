@@ -6,13 +6,17 @@ Users log in with just their email, username, or phone number + a one-time verif
 
 ## Features
 
-- **Email OTP login** — send a 6-digit code to the user's inbox, verify, session created
+- **Email OTP** — send a 6-digit code via Frappe's built-in email (SMTP)
 - **HTTP channel OTP** — send codes via any HTTP API (SMS gateways, ntfy.sh, custom providers)
-- **Flexible identifier** — look up users by email, username, or phone number
+- **Channel selection UX** — users pick how to receive the OTP when multiple channels are enabled
+- **Email as a peer channel** — enable/disable email independently, just like any HTTP channel
+- **Flexible identifier** — lookup by email, username, phone, or mobile number
+- **Per-channel identifier label** — configure what each channel asks for ("Email Address", "Phone Number", "Subscribed Topic")
 - **Rate limiting** — max 5 OTP requests per identifier per 15 minutes
 - **Brute-force protection** — max 5 failed verification attempts per OTP
-- **Custom login page** — clean two-step form at `/otp_login`, styled to match Frappe's UI
 - **Anti-enumeration** — returns success even if the user doesn't exist
+- **Desk configuration page** — modal dialogs for channel setup, SMTP status display
+- **Clean uninstall** — removes Redis keys and Desktop Icon on `bench uninstall-app`
 
 ## Install
 
@@ -79,15 +83,21 @@ The app supports configurable HTTP channels for OTP delivery via external APIs (
 
 ### Channel Configuration
 
-Each channel is a child row in **OTP Login Settings** with:
+Each channel is configured via a modal dialog in **OTP Login Settings** with:
 
 | Field | Description |
 |---|---|
 | Channel Name | Display name (e.g., "MSG91", "ntfy.sh") |
+| Enabled | Toggle to enable/disable this channel |
+| Identifier Label | What the input field asks for ("Email Address", "Phone Number", "Subscribed Topic") |
 | Method | GET or POST |
-| URL | API endpoint URL |
-| Content Type | JSON, form-urlencoded, or raw text |
+| URL | API endpoint URL (must start with `http://` or `https://`) |
+| Content Type | `application/json`, `application/x-www-form-urlencoded`, or `Raw (text/plain)` |
 | Auth Type | None, Bearer, Basic, or API Key |
+| Auth Token | Bearer token or API key value (stored encrypted) |
+| Auth Username / Password | Credentials for Basic auth (stored encrypted) |
+| OTP Parameter Name | Field name for the OTP code in the request |
+| Recipient Parameter Name | Field name for the recipient identifier |
 | Message Template | Jinja template with `{{ otp }}`, `{{ recipient }}`, `{{ site_name }}` |
 | Parameters | Extra key-value pairs (query params, form fields, headers) |
 
@@ -105,6 +115,28 @@ On first install, two preset channels are created:
 - **Failure limit**: 5 wrong attempts locks the OTP (user must request a new one)
 - **No user enumeration**: `send_otp` returns success even if the identifier doesn't match any user
 - **Passwordless session**: Uses `LoginManager.login_as()` — same session mechanism as Frappe's built-in login
+
+## Configuration
+
+1. Open the desk and navigate to the **OTP Login** workspace (lock icon in sidebar)
+2. Click **OTP Login Settings** shortcut
+3. **Email OTP**: toggle `Email OTP` to enable/disable email delivery. Click **Fetch SMTP Settings** to verify your outgoing email is configured
+4. **HTTP Channels**: click **Add HTTP Channel** to open the configuration modal. Double-click any row to edit, or use the **Edit** button on each row
+5. Set `Identifier Label` on each channel — this controls what the login page asks the user to enter
+
+The grid shows a 4-column summary: Channel Name, Enabled, Method, URL. All other fields are in the modal.
+
+## Uninstall
+
+```bash
+bench --site your-site.localhost uninstall-app frappe_otp_login
+```
+
+The `before_uninstall` hook cleans up:
+- All OTP codes, rate-limit counters, and failure counters from Redis
+- The Desktop Icon record for the app
+
+Frappe automatically drops all doctype tables, removes Module Def records, and deletes the workspace.
 
 ## How It Differs from Built-in 2FA
 
