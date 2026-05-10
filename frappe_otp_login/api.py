@@ -70,7 +70,7 @@ def send_otp(identifier: str, channel: str | None = None) -> dict:
 	if channel and channel != "Email":
 		for c in settings.http_channels:
 			if c.channel_name == channel:
-				user_field = c.user_field or "email"
+				user_field = "otp_" + (c.user_field or "email")
 				break
 	elif channel == "Email" or (not channel and settings.email_enabled):
 		user_field = settings.email_search_field or "email"

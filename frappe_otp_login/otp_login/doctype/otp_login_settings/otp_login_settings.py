@@ -1,6 +1,15 @@
 import frappe
 from frappe.model.document import Document
 
+PREFIX = "otp_"
+
+
+def _prefixed(fieldname: str) -> str:
+	"""Add our app prefix so we can identify fields we own."""
+	if fieldname.startswith(PREFIX):
+		return fieldname
+	return PREFIX + fieldname
+
 
 class OTPLoginSettings(Document):
 	def validate(self):
@@ -8,56 +17,46 @@ class OTPLoginSettings(Document):
 		self.cleanup_orphaned_user_fields()
 
 	def ensure_user_fields_exist(self):
-		"""Create custom fields on User doctype for any channel's user_field."""
+		"""Create otp_-prefixed custom fields on User for each channel's user_field."""
 		for channel in self.http_channels:
 			fieldname = channel.user_field
 			if not fieldname:
 				continue
-			if _is_standard_user_field(fieldname):
+			pf = _prefixed(fieldname)
+			if frappe.db.exists("Custom Field", {"dt": "User", "fieldname": pf}):
 				continue
-			if frappe.db.exists("Custom Field", {"dt": "User", "fieldname": fieldname}):
-				continue
-			_create_user_field(fieldname)
+			_create_user_field(pf)
 			frappe.msgprint(
-				frappe._("Added field '{0}' to User doctype for channel '{1}'").format(
-					fieldname, channel.channel_name
-				),
+				frappe._("Added field '{0}' to User for channel '{1}'").format(pf, channel.channel_name),
 				alert=True,
 			)
 
 	def cleanup_orphaned_user_fields(self):
-		"""Remove custom User fields that are no longer referenced by any channel.
-		Also removes fields from old channel edits (when user_field is changed)."""
-		# Collect all currently-referenced user_fields
-		active_fields = {c.user_field for c in self.http_channels if c.user_field}
+		"""Remove otp_-prefixed User fields no longer referenced by any channel."""
+		active_prefixed = {_prefixed(c.user_field) for c in self.http_channels if c.user_field}
 
-		# Find all non-standard custom fields on User
 		custom_fields = frappe.get_all(
 			"Custom Field",
-			filters={"dt": "User"},
+			filters={"dt": "User", "fieldname": ("like", PREFIX + "%")},
 			fields=["fieldname"],
 		)
 
 		for cf in custom_fields:
 			fn = cf.fieldname
-			if _is_standard_user_field(fn):
-				continue
-			if fn not in active_fields:
+			if fn not in active_prefixed:
 				_delete_user_field(fn)
 				frappe.msgprint(
-					frappe._("Removed field '{0}' from User doctype").format(fn),
+					frappe._("Removed field '{0}' from User").format(fn),
 					alert=True,
 				)
 
 	@frappe.whitelist()
 	def fetch_smtp_settings(self):
-		"""Fetch SMTP settings from the default outgoing Email Account."""
-		default = frappe.db.get_value(
+		if default := frappe.db.get_value(
 			"Email Account",
 			{"default_outgoing": 1, "enable_outgoing": 1},
 			["name", "smtp_server", "smtp_port", "email_id"],
-		)
-		if default:
+		):
 			self.email_status = "Configured"
 			self.smtp_server = default[1] or "Not set"
 			self.smtp_port = str(default[2]) if default[2] else "Not set"
@@ -70,17 +69,10 @@ class OTPLoginSettings(Document):
 
 	@staticmethod
 	def get_enabled_channels():
-		"""Return list of enabled HTTP channels for API use."""
 		settings = frappe.get_single("OTP Login Settings")
 		if not settings.enabled:
 			return []
 		return [c for c in settings.http_channels if c.enabled]
-
-
-def _is_standard_user_field(fieldname):
-	"""Return True if fieldname is a built-in User field (not a custom one we created)."""
-	# Built-in fields are in the JSON schema, custom fields are in tabCustom Field
-	return not frappe.db.exists("Custom Field", {"dt": "User", "fieldname": fieldname})
 
 
 def _create_user_field(fieldname):
@@ -98,20 +90,18 @@ def _create_user_field(fieldname):
 
 
 def _add_field_to_form_layout(fieldname):
-	"""Ensure the custom field appears on the User form."""
 	try:
 		if frappe.db.exists("Customize Form", {"doc_type": "User"}):
 			cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
 		else:
 			cf = frappe.new_doc("Customize Form")
 			cf.doc_type = "User"
-		already = any(f.fieldname == fieldname for f in cf.fields)
-		if not already:
+		if not any(f.fieldname == fieldname for f in cf.fields):
 			cf.append("fields", {"fieldname": fieldname})
 			cf.save(ignore_permissions=True)
 			frappe.db.commit()
 	except Exception:
-		pass  # Customize Form table may not exist; field is still usable via API
+		pass
 
 
 def _delete_user_field(fieldname):
