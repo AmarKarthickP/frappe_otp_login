@@ -1,5 +1,5 @@
 app_name = "frappe_otp_login"
-app_title = "Frappe OTP Login"
+app_title = "OTP Login"
 app_publisher = "Clearent"
 app_description = "Passwordless OTP login via email and HTTP"
 app_email = "dev@clearent.in"
