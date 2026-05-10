@@ -47,6 +47,11 @@ def after_install():
 		sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"
 
 	settings.save(ignore_permissions=True)
+
+	# Fix Desktop Icon type (Frappe sometimes sets it to NULL)
+	for icon in frappe.get_all("Desktop Icon", filters={"app": "frappe_otp_login", "type": ("is", "not set")}):
+		frappe.db.set_value("Desktop Icon", icon.name, "type", "App")
+
 	frappe.db.commit()
 
 
