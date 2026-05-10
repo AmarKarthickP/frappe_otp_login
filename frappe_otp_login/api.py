@@ -127,9 +127,9 @@ def verify_otp(identifier: str, otp: str) -> dict:
 	if stored_otp != otp:
 		frappe.throw(_("Invalid OTP. Please try again."))
 
+	user = get_stored_user(identifier)
 	delete_stored_otp(identifier)
 
-	user = get_stored_user(identifier)
 	if not user:
 		frappe.throw(_("User not found."))
 
