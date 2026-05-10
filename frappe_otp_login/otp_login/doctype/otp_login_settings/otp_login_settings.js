@@ -116,11 +116,14 @@ function open_channel_dialog(frm, existing_row) {
 		primary_action_label: is_edit ? __("Update") : __("Add"),
 		primary_action(values) {
 			if (is_edit) {
-				Object.assign(existing_row, values);
+				for (let key of Object.keys(values)) {
+					frappe.model.set_value(existing_row.doctype, existing_row.name, key, values[key]);
+				}
 			} else {
 				frm.add_child("http_channels", values);
 			}
 			frm.fields_dict.http_channels.grid.refresh();
+			frm.dirty();
 			frm.save().then(() => d.hide());
 		},
 	});
