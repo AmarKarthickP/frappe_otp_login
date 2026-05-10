@@ -124,7 +124,8 @@ function open_channel_dialog(frm, existing_row) {
 			}
 			frm.fields_dict.http_channels.grid.refresh();
 			frm.dirty();
-			frm.save().then(() => d.hide());
+			d.hide();
+			frm.save();
 		},
 	});
 

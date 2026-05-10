@@ -114,6 +114,12 @@ def send_otp(identifier: str, channel: str | None = None) -> dict:
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+def send_otp_via_channel(channel: str, identifier: str) -> dict:
+	"""Send OTP via a specific channel. Channel name in the path."""
+	return send_otp(identifier=identifier, channel=channel)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def verify_otp(identifier: str, otp: str) -> dict:
 	identifier = identifier.strip().lower()
 	otp = otp.strip()
