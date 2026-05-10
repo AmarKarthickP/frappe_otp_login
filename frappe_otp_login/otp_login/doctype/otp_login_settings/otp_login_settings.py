@@ -101,16 +101,16 @@ def _create_user_field(fieldname):
 
 def _add_field_to_form_layout(fieldname):
 	"""Ensure the custom field appears on the User form."""
-	try:
+	if frappe.db.exists("Customize Form", {"doc_type": "User"}):
 		cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
-		if cf:
-			already = any(f.fieldname == fieldname for f in cf.fields)
-			if not already:
-				cf.append("fields", {"fieldname": fieldname})
-				cf.save()
-				frappe.db.commit()
-	except Exception:
-		pass  # Customize Form might not exist yet; field is still usable via API
+	else:
+		cf = frappe.new_doc("Customize Form")
+		cf.doc_type = "User"
+	already = any(f.fieldname == fieldname for f in cf.fields)
+	if not already:
+		cf.append("fields", {"fieldname": fieldname})
+		cf.save(ignore_permissions=True)
+		frappe.db.commit()
 
 
 def _delete_user_field(fieldname):
