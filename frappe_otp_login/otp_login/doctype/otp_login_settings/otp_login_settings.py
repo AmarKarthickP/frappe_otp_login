@@ -5,11 +5,10 @@ from frappe.model.document import Document
 class OTPLoginSettings(Document):
 	def validate(self):
 		self.ensure_user_fields_exist()
-		self.cleanup_deleted_channel_fields()
+		self.cleanup_orphaned_user_fields()
 
 	def ensure_user_fields_exist(self):
-		"""Create custom fields on User doctype for any channel's user_field
-		that doesn't already exist as a User field."""
+		"""Create custom fields on User doctype for any channel's user_field."""
 		for channel in self.http_channels:
 			fieldname = channel.user_field
 			if not fieldname:
@@ -26,30 +25,29 @@ class OTPLoginSettings(Document):
 				alert=True,
 			)
 
-	def cleanup_deleted_channel_fields(self):
-		"""Remove custom User fields for channels that were deleted."""
-		if not self.is_new():
-			old_doc = self.get_doc_before_save()
-			if not old_doc:
-				return
-			old_fields = {c.user_field for c in old_doc.http_channels if c.user_field}
-		else:
-			old_fields = set()
+	def cleanup_orphaned_user_fields(self):
+		"""Remove custom User fields that are no longer referenced by any channel.
+		Also removes fields from old channel edits (when user_field is changed)."""
+		# Collect all currently-referenced user_fields
+		active_fields = {c.user_field for c in self.http_channels if c.user_field}
 
-		new_fields = {c.user_field for c in self.http_channels if c.user_field}
+		# Find all non-standard custom fields on User
+		custom_fields = frappe.get_all(
+			"Custom Field",
+			filters={"dt": "User"},
+			fields=["fieldname"],
+		)
 
-		removed = old_fields - new_fields
-		for fieldname in removed:
-			if _is_standard_user_field(fieldname):
+		for cf in custom_fields:
+			fn = cf.fieldname
+			if _is_standard_user_field(fn):
 				continue
-			# Only delete if no other channel still uses this field
-			if fieldname in new_fields:
-				continue
-			_delete_user_field(fieldname)
-			frappe.msgprint(
-				frappe._("Removed field '{0}' from User doctype").format(fieldname),
-				alert=True,
-			)
+			if fn not in active_fields:
+				_delete_user_field(fn)
+				frappe.msgprint(
+					frappe._("Removed field '{0}' from User doctype").format(fn),
+					alert=True,
+				)
 
 	@frappe.whitelist()
 	def fetch_smtp_settings(self):
@@ -96,7 +94,6 @@ def _create_user_field(fieldname):
 		"insert_after": "mobile_no",
 		"translatable": 0,
 	}).insert(ignore_permissions=True)
-	# Also add the field to the User form layout so it's editable
 	_add_field_to_form_layout(fieldname)
 
 
@@ -116,16 +113,12 @@ def _add_field_to_form_layout(fieldname):
 
 def _delete_user_field(fieldname):
 	frappe.db.delete("Custom Field", {"dt": "User", "fieldname": fieldname})
-	# Also remove from form layout
 	_remove_field_from_form_layout(fieldname)
 
 
 def _remove_field_from_form_layout(fieldname):
-	try:
+	if frappe.db.exists("Customize Form", {"doc_type": "User"}):
 		cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
-		if cf:
-			cf.fields = [f for f in cf.fields if f.fieldname != fieldname]
-			cf.save()
-			frappe.db.commit()
-	except Exception:
-		pass
+		cf.fields = [f for f in cf.fields if f.fieldname != fieldname]
+		cf.save(ignore_permissions=True)
+		frappe.db.commit()
