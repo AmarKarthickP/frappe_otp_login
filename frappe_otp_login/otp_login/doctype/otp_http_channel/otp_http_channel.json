@@ -63,7 +63,6 @@
   {
    "fieldname": "identifier_label",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Identifier Label"
   },
   {
@@ -74,7 +73,6 @@
   {
    "fieldname": "auth_type",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Auth Type",
    "options": "None\nBearer\nBasic\nAPI Key"
   },
@@ -109,7 +107,6 @@
    "default": "application/json",
    "fieldname": "content_type",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Content Type",
    "options": "application/json\napplication/x-www-form-urlencoded\nRaw (text/plain)"
   },
@@ -117,7 +114,6 @@
    "depends_on": "eval:doc.method=='POST'",
    "fieldname": "otp_param",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "OTP Parameter Name"
   },
   {

@@ -7,9 +7,17 @@ frappe.ui.form.on("OTP Login Settings", {
 			});
 		});
 
-		// Replace default Add Row with custom modal
+		// Hide default Add Row and add custom button
 		frm.fields_dict.http_channels.grid.wrapper.find(".grid-add-row").hide();
 		frm.add_custom_button(__("Add HTTP Channel"), () => open_channel_dialog(frm), __("HTTP Channels"));
+
+		// Add Edit button to each row
+		add_edit_buttons(frm);
+
+		// Refresh edit buttons when grid changes
+		frm.fields_dict.http_channels.grid.grid_rows_updated = () => {
+			add_edit_buttons(frm);
+		};
 	},
 
 	email_enabled(frm) {
@@ -17,9 +25,34 @@ frappe.ui.form.on("OTP Login Settings", {
 	},
 });
 
+function add_edit_buttons(frm) {
+	let grid = frm.fields_dict.http_channels.grid;
+	grid.wrapper.find(".grid-edit-row-btn").remove();
+
+	grid.wrapper.find(".grid-row").each(function () {
+		let $row = $(this);
+		let row_name = $row.attr("data-name");
+
+		// Skip header and existing buttons
+		if ($row.find(".grid-edit-row-btn").length) return;
+
+		let $btn = $(`<button class="btn btn-xs btn-default grid-edit-row-btn"
+			style="position:absolute; right: 8px; top: 4px; z-index:1;">
+			${__("Edit")}</button>`);
+
+		$btn.on("click", function (e) {
+			e.stopPropagation();
+			let row = frm.doc.http_channels.find(r => r.name === row_name);
+			if (row) open_channel_dialog(frm, row);
+		});
+
+		$row.css("position", "relative").append($btn);
+	});
+}
+
 function open_channel_dialog(frm, existing_row) {
 	let is_edit = !!existing_row;
-	let row_data = existing_row ? frappe.model.copy_doc(existing_row) : {};
+	let row_data = existing_row ? $.extend(true, {}, existing_row) : {};
 
 	let fields = [
 		{ fieldtype: "Section Break", label: __("Channel") },
@@ -58,6 +91,12 @@ function open_channel_dialog(frm, existing_row) {
 			data: row_data.parameters || [] },
 	];
 
+	// Pre-populate password fields for editing (Frappe doesn't auto-fill Password fields)
+	if (is_edit) {
+		if (row_data.auth_token) row_data.auth_token = existing_row.auth_token;
+		if (row_data.auth_password) row_data.auth_password = existing_row.auth_password;
+	}
+
 	let d = new frappe.ui.Dialog({
 		title: is_edit ? __("Edit HTTP Channel") : __("Add HTTP Channel"),
 		fields: fields,
@@ -65,32 +104,19 @@ function open_channel_dialog(frm, existing_row) {
 		primary_action_label: is_edit ? __("Update") : __("Add"),
 		primary_action(values) {
 			if (is_edit) {
-				// Update existing row
 				Object.assign(existing_row, values);
 				frm.fields_dict.http_channels.grid.refresh();
 			} else {
-				// Add new row
-				let row = frm.add_child("http_channels", values);
+				frm.add_child("http_channels", values);
 				frm.fields_dict.http_channels.grid.refresh();
 			}
 			d.hide();
 		},
 	});
 
-	// Pre-populate if editing
 	if (is_edit) {
 		d.set_values(row_data);
 	}
-
-	// Handle grid row clicks: open editor on double-click
-	frm.fields_dict.http_channels.grid.wrapper.on("dblclick", ".grid-row", function () {
-		let $row = $(this);
-		let row_name = $row.attr("data-name");
-		let row = frm.doc.http_channels.find(r => r.name === row_name);
-		if (row) {
-			open_channel_dialog(frm, row);
-		}
-	});
 
 	d.show();
 }
