@@ -1,15 +1,15 @@
-// OTP Login: Replace "Login with Email Link" button with our OTP login
+// OTP Login: Replace "Login with Email Link" button with link to /otp_login
 (function() {
 	function replace_button() {
-		var link = document.querySelector('.btn-login-with-email-link');
-		if (!link) return;
+		var wrapper = document.querySelector('.login-with-email-link');
+		if (!wrapper) return;
 
-		link.textContent = 'Login with OTP';
-		link.href = '/otp_login';
-		link.removeAttribute('href');  // remove #hash to prevent Frappe's email-link handler
-		link.setAttribute('onclick', 'window.location.href=\"/otp_login\"; return false;');
+		// Replace the entire button with our own that links to /otp_login
+		wrapper.innerHTML = '<div class="login-button-wrapper">'
+			+ '<a href="/otp_login" class="btn btn-block btn-default btn-sm btn-login-option">'
+			+ 'Login with OTP</a></div>';
 
-		// Also hide the Frappe email-link section since we're replacing it
+		// Hide the Frappe email-link section
 		var section = document.querySelector('.for-login-with-email-link');
 		if (section) section.style.display = 'none';
 	}
