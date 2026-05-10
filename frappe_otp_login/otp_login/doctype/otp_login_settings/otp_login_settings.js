@@ -70,7 +70,7 @@ function open_channel_dialog(frm, existing_row) {
 			depends_on: "eval:doc.method=='POST'" },
 		{ fieldtype: "Data", fieldname: "recipient_param", label: __("Recipient Parameter Name"),
 			depends_on: "eval:doc.method=='POST'" },
-		{ fieldtype: "Small Text", fieldname: "message_template", label: __("Message Template") },
+		{ fieldtype: "Small Text", fieldname: "message_template", label: __("Message") },
 		{ fieldtype: "Section Break", label: __("Authentication") },
 		{ fieldtype: "Select", fieldname: "auth_type", label: __("Auth Type"),
 			options: "None\nBearer\nBasic\nAPI Key" },
@@ -115,8 +115,21 @@ function open_channel_dialog(frm, existing_row) {
 		},
 	});
 
+	// Dynamically update message_template label based on content_type
+	let msg_field = d.get_field("message_template");
+	let ct_field = d.get_field("content_type");
+	function update_msg_label() {
+		let ct = d.get_value("content_type") || "application/json";
+		if (ct === "Raw (text/plain)") msg_field.df.label = __("Message");
+		else if (ct === "application/x-www-form-urlencoded") msg_field.df.label = __("Raw Form Data");
+		else msg_field.df.label = __("JSON");
+		msg_field.refresh();
+	}
+	ct_field.$input.on("change", update_msg_label);
+
 	if (is_edit) {
 		d.set_values(row_data);
+		update_msg_label();
 	}
 
 	d.show();
