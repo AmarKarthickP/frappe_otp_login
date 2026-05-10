@@ -115,7 +115,7 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 
 	# Build headers
 	headers = {}
-	for p in channel.get("parameters", []):
+	for p in (channel.get("parameters") or []):
 		if p.is_header:
 			headers[p.key] = p.value
 
@@ -140,7 +140,7 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 		if placement == "Query Parameter":
 			params[identifier_key] = identifier
 		params[otp_key] = otp
-		for p in channel.get("parameters", []):
+		for p in (channel.get("parameters") or []):
 			if not p.is_header:
 				params[p.key] = p.value
 		resp = requests.get(url, params=params, headers=headers, timeout=10)
@@ -159,7 +159,7 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 			if placement == "POST Parameter":
 				form_data[identifier_key] = identifier
 			form_data[otp_key] = otp
-			for p in channel.get("parameters", []):
+			for p in (channel.get("parameters") or []):
 				if not p.is_header:
 					form_data[p.key] = p.value
 			resp = requests.post(url, data=form_data, headers=headers, timeout=10)
@@ -170,7 +170,7 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 			if placement == "POST Parameter":
 				json_data[identifier_key] = identifier
 			json_data[otp_key] = otp
-			for p in channel.get("parameters", []):
+			for p in (channel.get("parameters") or []):
 				if not p.is_header:
 					json_data[p.key] = p.value
 			if channel.message_template:
