@@ -140,7 +140,7 @@ frappe.ready(function() {
 	}
 
 	function start_resend_timer() {
-		let seconds = 60;
+		let seconds = 30;
 		const timer = document.getElementById('resend-timer');
 		const resend_section = document.getElementById('resend-section');
 		resend_section.classList.add('visible');
@@ -246,7 +246,7 @@ frappe.ready(function() {
 				current_identifier = identifier;
 				const ch_name = selected_channel ? selected_channel.label : '{{ _("your identifier") }}';
 				document.getElementById('otp-sent-to').textContent =
-					'{{ _("OTP sent via") }} ' + ch_name + ' {{ _("to") }} ' + identifier;
+					'{{ _("If your details exist, you will receive an OTP via") }} ' + ch_name + '.';
 				show_step('step-verify');
 				document.getElementById('otp-code-input').focus();
 				start_resend_timer();
