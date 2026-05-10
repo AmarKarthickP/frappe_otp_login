@@ -40,10 +40,9 @@
   {
    "default": "email",
    "fieldname": "email_search_field",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "label": "Match User By",
-   "options": "email\nusername",
-   "description": "Which User field to match when using Email OTP"
+   "description": "Fieldname on the User doc to match for Email OTP (e.g., email, username)"
   },
   {
    "fieldname": "email_section",

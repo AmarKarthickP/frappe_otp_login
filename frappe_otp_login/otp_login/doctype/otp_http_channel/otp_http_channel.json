@@ -57,10 +57,9 @@
   {
    "default": "email",
    "fieldname": "user_field",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "label": "Match User By",
-   "options": "email\nusername\nphone\nmobile_no",
-   "description": "Which field on the User document to match the identifier against"
+   "description": "Fieldname on the User doc to match. Use any standard or custom field (e.g., email, phone, ntfy_topic)"
   },
   {
    "fieldname": "request_section",
