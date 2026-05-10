@@ -33,7 +33,8 @@ function add_edit_buttons(frm) {
 		let $row = $(this);
 		let row_name = $row.attr("data-name");
 
-		// Skip header and existing buttons
+		// Skip header row, footer, and existing buttons
+		if ($row.hasClass("grid-heading-row") || $row.hasClass("grid-footer-row")) return;
 		if ($row.find(".grid-edit-row-btn").length) return;
 
 		let $btn = $(`<button class="btn btn-xs btn-default grid-edit-row-btn"
