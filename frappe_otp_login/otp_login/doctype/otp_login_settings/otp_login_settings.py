@@ -4,7 +4,42 @@ from frappe.model.document import Document
 
 class OTPLoginSettings(Document):
 	def validate(self):
-		pass
+		self.ensure_user_fields_exist()
+
+	def ensure_user_fields_exist(self):
+		"""Create custom fields on User doctype for any channel's user_field
+		that doesn't already exist as a User field."""
+		for channel in self.http_channels:
+			fieldname = channel.user_field
+			if not fieldname:
+				continue
+			# Skip standard fields
+			if fieldname in ("email", "username", "phone", "mobile_no",
+				"first_name", "last_name", "full_name", "name"):
+				continue
+			if frappe.db.exists("Custom Field", {"dt": "User", "fieldname": fieldname}):
+				continue
+			# Check if field already exists as a standard field
+			meta = frappe.get_meta("User")
+			if meta.get_field(fieldname):
+				continue
+			# Create the custom field
+			frappe.get_doc({
+				"doctype": "Custom Field",
+				"dt": "User",
+				"fieldname": fieldname,
+				"label": fieldname.replace("_", " ").title(),
+				"fieldtype": "Data",
+				"insert_after": "mobile_no",
+				"translatable": 0,
+				"owner": "Administrator",
+			}).insert(ignore_permissions=True)
+			frappe.msgprint(
+				frappe._("Added field '{0}' to User doctype for channel '{1}'").format(
+					fieldname, channel.channel_name
+				),
+				alert=True,
+			)
 
 	@frappe.whitelist()
 	def fetch_smtp_settings(self):
