@@ -117,12 +117,12 @@ function open_channel_dialog(frm, existing_row) {
 		primary_action(values) {
 			if (is_edit) {
 				Object.assign(existing_row, values);
-				frm.fields_dict.http_channels.grid.refresh();
 			} else {
 				frm.add_child("http_channels", values);
-				frm.fields_dict.http_channels.grid.refresh();
 			}
+			frm.fields_dict.http_channels.grid.refresh();
 			d.hide();
+			frm.save();
 		},
 	});
 
