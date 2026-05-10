@@ -22,6 +22,7 @@ frappe.ui.form.on("OTP Login Settings", {
 
 	email_enabled(frm) {
 		frm.toggle_display("email_section", frm.doc.email_enabled);
+		frm.toggle_display("email_search_field", frm.doc.email_enabled);
 	},
 });
 
@@ -33,7 +34,6 @@ function add_edit_buttons(frm) {
 		let $row = $(this);
 		let row_name = $row.attr("data-name");
 
-		// Skip header row, footer, and existing buttons
 		if ($row.hasClass("grid-heading-row") || $row.hasClass("grid-footer-row")) return;
 		if ($row.find(".grid-edit-row-btn").length) return;
 
@@ -59,18 +59,31 @@ function open_channel_dialog(frm, existing_row) {
 		{ fieldtype: "Section Break", label: __("Channel") },
 		{ fieldtype: "Data", fieldname: "channel_name", label: __("Channel Name"), reqd: 1 },
 		{ fieldtype: "Check", fieldname: "enabled", label: __("Enabled") },
-		{ fieldtype: "Data", fieldname: "identifier_label", label: __("Identifier Label") },
-		{ fieldtype: "Section Break", label: __("Request") },
+		{ fieldtype: "Data", fieldname: "identifier_label", label: __("Identifier Label"),
+			description: __("What to ask the user for on the login page (e.g., Phone Number, Subscribed Topic)") },
+		{ fieldtype: "Section Break", label: __("User Matching") },
+		{ fieldtype: "Select", fieldname: "user_field", label: __("Match User By"),
+			options: "email\nusername\nphone\nmobile_no",
+			description: __("Which field on the User document to match the identifier against") },
+		{ fieldtype: "Section Break", label: __("HTTP Request") },
 		{ fieldtype: "Select", fieldname: "method", label: __("Method"), options: "GET\nPOST", reqd: 1 },
-		{ fieldtype: "Data", fieldname: "url", label: __("URL"), reqd: 1 },
+		{ fieldtype: "Data", fieldname: "url", label: __("URL"), reqd: 1,
+			description: __("Use {{ identifier }} as placeholder for the user's input") },
+		{ fieldtype: "Section Break", label: __("How to Send the Identifier") },
+		{ fieldtype: "Select", fieldname: "identifier_placement", label: __("Identifier Placement"),
+			options: "URL Path\nQuery Parameter\nPOST Parameter\nMessage Template",
+			description: __("How the identifier is passed to the HTTP endpoint") },
+		{ fieldtype: "Data", fieldname: "recipient_param", label: __("Recipient Parameter Name"),
+			depends_on: "eval:['Query Parameter','POST Parameter'].includes(doc.identifier_placement)",
+			description: __("The key name for the identifier (e.g., mobiles, topic, to)") },
 		{ fieldtype: "Column Break" },
 		{ fieldtype: "Select", fieldname: "content_type", label: __("Content Type"),
 			options: "application/json\napplication/x-www-form-urlencoded\nRaw (text/plain)" },
 		{ fieldtype: "Data", fieldname: "otp_param", label: __("OTP Parameter Name"),
-			depends_on: "eval:doc.method=='POST'" },
-		{ fieldtype: "Data", fieldname: "recipient_param", label: __("Recipient Parameter Name"),
-			depends_on: "eval:doc.method=='POST'" },
-		{ fieldtype: "Small Text", fieldname: "message_template", label: __("Message") },
+			description: __("The key name for the OTP code (e.g., message, code, otp)") },
+		{ fieldtype: "Column Break" },
+		{ fieldtype: "Small Text", fieldname: "message_template", label: __("Message"),
+			description: __("Jinja template. Variables: {{ otp }}, {{ identifier }}, {{ site_name }}") },
 		{ fieldtype: "Section Break", label: __("Authentication") },
 		{ fieldtype: "Select", fieldname: "auth_type", label: __("Auth Type"),
 			options: "None\nBearer\nBasic\nAPI Key" },
@@ -92,7 +105,6 @@ function open_channel_dialog(frm, existing_row) {
 			data: row_data.parameters || [] },
 	];
 
-	// Pre-populate password fields for editing (Frappe doesn't auto-fill Password fields)
 	if (is_edit) {
 		if (row_data.auth_token) row_data.auth_token = existing_row.auth_token;
 		if (row_data.auth_password) row_data.auth_password = existing_row.auth_password;
@@ -115,7 +127,7 @@ function open_channel_dialog(frm, existing_row) {
 		},
 	});
 
-	// Dynamically update message_template label based on content_type
+	// Dynamic message_template label based on content_type
 	let msg_field = d.get_field("message_template");
 	let ct_field = d.get_field("content_type");
 	function update_msg_label() {
@@ -127,9 +139,24 @@ function open_channel_dialog(frm, existing_row) {
 	}
 	ct_field.$input.on("change", update_msg_label);
 
+	// Dynamic URL hint based on identifier_placement
+	let place_field = d.get_field("identifier_placement");
+	let url_field = d.get_field("url");
+	function update_url_hint() {
+		let p = d.get_value("identifier_placement") || "Query Parameter";
+		if (p === "URL Path") {
+			url_field.df.description = __("Use {{ identifier }} as placeholder. Example: https://ntfy.sh/{{ identifier }}");
+		} else {
+			url_field.df.description = __("API endpoint URL");
+		}
+		url_field.refresh();
+	}
+	place_field.$input.on("change", update_url_hint);
+
 	if (is_edit) {
 		d.set_values(row_data);
 		update_msg_label();
+		update_url_hint();
 	}
 
 	d.show();

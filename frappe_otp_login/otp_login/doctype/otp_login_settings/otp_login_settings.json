@@ -6,6 +6,7 @@
  "field_order": [
   "enabled",
   "email_enabled",
+  "email_search_field",
   "email_section",
   "email_status",
   "smtp_server",
@@ -27,6 +28,14 @@
    "fieldname": "email_enabled",
    "fieldtype": "Check",
    "label": "Email OTP"
+  },
+  {
+   "default": "email",
+   "fieldname": "email_search_field",
+   "fieldtype": "Select",
+   "label": "Match User By",
+   "options": "email\nusername",
+   "description": "Which User field to match when using Email OTP"
   },
   {
    "fieldname": "email_section",

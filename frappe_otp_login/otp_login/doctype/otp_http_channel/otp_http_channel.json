@@ -8,21 +8,25 @@
   "channel_name",
   "enabled",
   "column_break_1",
+  "identifier_label",
+  "user_field",
+  "request_section",
   "method",
   "url",
-  "identifier_label",
+  "identifier_placement_section",
+  "identifier_placement",
+  "recipient_param",
+  "column_break_2",
+  "content_type",
+  "otp_param",
+  "column_break_req",
+  "message_template",
   "auth_section",
   "auth_type",
   "auth_token",
   "column_break_auth",
   "auth_username",
   "auth_password",
-  "request_section",
-  "content_type",
-  "otp_param",
-  "recipient_param",
-  "column_break_req",
-  "message_template",
   "parameters_section",
   "parameters"
  ],
@@ -46,6 +50,24 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "identifier_label",
+   "fieldtype": "Data",
+   "label": "Identifier Label"
+  },
+  {
+   "default": "email",
+   "fieldname": "user_field",
+   "fieldtype": "Select",
+   "label": "Match User By",
+   "options": "email\nusername\nphone\nmobile_no",
+   "description": "Which field on the User document to match the identifier against"
+  },
+  {
+   "fieldname": "request_section",
+   "fieldtype": "Section Break",
+   "label": "HTTP Request"
+  },
+  {
    "fieldname": "method",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -58,12 +80,55 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "URL",
-   "reqd": 1
+   "reqd": 1,
+   "description": "Use {{ identifier }} as placeholder for the user's input value"
   },
   {
-   "fieldname": "identifier_label",
+   "fieldname": "identifier_placement_section",
+   "fieldtype": "Section Break",
+   "label": "How to Send the Identifier"
+  },
+  {
+   "default": "Query Parameter",
+   "fieldname": "identifier_placement",
+   "fieldtype": "Select",
+   "label": "Identifier Placement",
+   "options": "URL Path\nQuery Parameter\nPOST Parameter\nMessage Template",
+   "description": "How the identifier is passed to the HTTP endpoint"
+  },
+  {
+   "depends_on": "eval:['Query Parameter','POST Parameter'].includes(doc.identifier_placement)",
+   "fieldname": "recipient_param",
    "fieldtype": "Data",
-   "label": "Identifier Label"
+   "label": "Recipient Parameter Name",
+   "description": "The key name for the identifier in the request (e.g., mobiles, topic, to)"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "application/json",
+   "fieldname": "content_type",
+   "fieldtype": "Select",
+   "label": "Content Type",
+   "options": "application/json\napplication/x-www-form-urlencoded\nRaw (text/plain)"
+  },
+  {
+   "fieldname": "otp_param",
+   "fieldtype": "Data",
+   "label": "OTP Parameter Name",
+   "description": "The key name for the OTP code in the request (e.g., message, code, otp)"
+  },
+  {
+   "fieldname": "column_break_req",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "message_template",
+   "fieldtype": "Small Text",
+   "label": "Message Template",
+   "description": "Jinja template. Available variables: {{ otp }}, {{ identifier }}, {{ site_name }}"
   },
   {
    "fieldname": "auth_section",
@@ -97,39 +162,6 @@
    "fieldname": "auth_password",
    "fieldtype": "Password",
    "label": "Password"
-  },
-  {
-   "fieldname": "request_section",
-   "fieldtype": "Section Break",
-   "label": "Request"
-  },
-  {
-   "default": "application/json",
-   "fieldname": "content_type",
-   "fieldtype": "Select",
-   "label": "Content Type",
-   "options": "application/json\napplication/x-www-form-urlencoded\nRaw (text/plain)"
-  },
-  {
-   "depends_on": "eval:doc.method=='POST'",
-   "fieldname": "otp_param",
-   "fieldtype": "Data",
-   "label": "OTP Parameter Name"
-  },
-  {
-   "depends_on": "eval:doc.method=='POST'",
-   "fieldname": "recipient_param",
-   "fieldtype": "Data",
-   "label": "Recipient Parameter Name"
-  },
-  {
-   "fieldname": "column_break_req",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "message_template",
-   "fieldtype": "Small Text",
-   "label": "Message Template"
   },
   {
    "fieldname": "parameters_section",

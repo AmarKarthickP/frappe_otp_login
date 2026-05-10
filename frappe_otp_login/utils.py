@@ -36,24 +36,17 @@ def check_failure_count(identifier: str) -> bool:
 	return count <= 5
 
 
-def find_user_by_identifier(identifier: str) -> str | None:
+def find_user_by_identifier(identifier: str, user_field: str | None = None) -> str | None:
 	identifier = identifier.strip().lower()
 
-	user = frappe.db.get_value("User", {"email": identifier}, "name")
-	if user:
-		return user
+	if user_field:
+		return frappe.db.get_value("User", {user_field: identifier}, "name")
 
-	user = frappe.db.get_value("User", {"username": identifier}, "name")
-	if user:
-		return user
-
-	user = frappe.db.get_value("User", {"phone": identifier}, "name")
-	if user:
-		return user
-
-	user = frappe.db.get_value("User", {"mobile_no": identifier}, "name")
-	if user:
-		return user
+	# Fallback: search common fields in order
+	for field in ("email", "username", "phone", "mobile_no"):
+		user = frappe.db.get_value("User", {field: identifier}, "name")
+		if user:
+			return user
 
 	return None
 
@@ -107,12 +100,18 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 		or _("Frappe")
 	)
 
+	# Render URL with identifier template
+	try:
+		url = frappe.render_template(channel.url, {"identifier": identifier})
+	except Exception:
+		url = channel.url.replace("{{ identifier }}", identifier)
+
 	# Render message template
 	template = channel.message_template or "Your OTP is {{ otp }}"
 	try:
-		body = frappe.render_template(template, {"otp": otp, "recipient": identifier, "site_name": site_name})
+		body = frappe.render_template(template, {"otp": otp, "identifier": identifier, "site_name": site_name})
 	except Exception:
-		body = template.replace("{{ otp }}", otp).replace("{{ recipient }}", identifier).replace("{{ site_name }}", site_name)
+		body = template.replace("{{ otp }}", otp).replace("{{ identifier }}", identifier).replace("{{ site_name }}", site_name)
 
 	# Build headers
 	headers = {}
@@ -131,16 +130,20 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 		pwd = channel.get_password("auth_password") or ""
 		headers["Authorization"] = f"Basic {base64.b64encode(f'{user}:{pwd}'.encode()).decode()}"
 
-	# Build query/body params
-	params = {}
+	placement = channel.identifier_placement or "Query Parameter"
+	add_identifier = placement in ("Query Parameter", "POST Parameter")
+	identifier_key = channel.recipient_param or "recipient"
+	otp_key = channel.otp_param or "otp"
+
 	if channel.method == "GET":
-		params[channel.otp_param or "otp"] = otp
-		params[channel.recipient_param or "recipient"] = identifier
+		params = {}
+		if placement == "Query Parameter":
+			params[identifier_key] = identifier
+		params[otp_key] = otp
 		for p in channel.parameters:
 			if not p.is_header:
 				params[p.key] = p.value
-
-		resp = requests.get(channel.url, params=params, headers=headers, timeout=10)
+		resp = requests.get(url, params=params, headers=headers, timeout=10)
 		resp.raise_for_status()
 
 	elif channel.method == "POST":
@@ -148,36 +151,30 @@ def send_http_request(channel, identifier: str, otp: str) -> None:
 
 		if content_type == "Raw (text/plain)":
 			headers.setdefault("Content-Type", "text/plain")
-			resp = requests.post(channel.url, data=body.encode("utf-8"), headers=headers, timeout=10)
+			resp = requests.post(url, data=body.encode("utf-8"), headers=headers, timeout=10)
 
 		elif content_type == "application/x-www-form-urlencoded":
 			headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
 			form_data = {}
-			form_data[channel.otp_param or "otp"] = otp
-			form_data[channel.recipient_param or "recipient"] = identifier
+			if placement == "POST Parameter":
+				form_data[identifier_key] = identifier
+			form_data[otp_key] = otp
 			for p in channel.parameters:
 				if not p.is_header:
 					form_data[p.key] = p.value
-			resp = requests.post(channel.url, data=form_data, headers=headers, timeout=10)
+			resp = requests.post(url, data=form_data, headers=headers, timeout=10)
 
 		else:  # application/json
 			headers.setdefault("Content-Type", "application/json")
 			json_data = {}
-			json_data[channel.otp_param or "otp"] = otp
-			json_data[channel.recipient_param or "recipient"] = identifier
+			if placement == "POST Parameter":
+				json_data[identifier_key] = identifier
+			json_data[otp_key] = otp
 			for p in channel.parameters:
 				if not p.is_header:
 					json_data[p.key] = p.value
-			# If there's a message_template, use it as an additional field or override
 			if channel.message_template:
-				# If only template is set (no otp_param), use template as raw body
-				if not channel.otp_param and not channel.recipient_param:
-					headers["Content-Type"] = "text/plain"
-					resp = requests.post(channel.url, data=body.encode("utf-8"), headers=headers, timeout=10)
-				else:
-					json_data["message"] = body
-					resp = requests.post(channel.url, json=json_data, headers=headers, timeout=10)
-			else:
-				resp = requests.post(channel.url, json=json_data, headers=headers, timeout=10)
+				json_data["message"] = body
+			resp = requests.post(url, json=json_data, headers=headers, timeout=10)
 
 		resp.raise_for_status()

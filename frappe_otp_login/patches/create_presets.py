@@ -8,18 +8,20 @@ def execute():
 	if settings.http_channels:
 		return
 
-	# ntfy.sh — Raw text POST
+	# ntfy.sh — Raw text POST via URL Path
 	ntfy = settings.append("http_channels")
 	ntfy.channel_name = "ntfy.sh"
 	ntfy.enabled = 0
 	ntfy.method = "POST"
-	ntfy.url = "https://ntfy.sh/your-topic"
+	ntfy.url = "https://ntfy.sh/{{ identifier }}"
 	ntfy.auth_type = "None"
 	ntfy.identifier_label = "Subscribed Topic"
+	ntfy.user_field = "email"
+	ntfy.identifier_placement = "URL Path"
 	ntfy.content_type = "Raw (text/plain)"
 	ntfy.message_template = "Your OTP code is {{ otp }}"
 
-	# Generic Indian SMS Provider — GET with query params (save first, add params later)
+	# Generic Indian SMS Provider — GET with query params
 	sms = settings.append("http_channels")
 	sms.channel_name = "Generic Indian SMS Provider"
 	sms.enabled = 0
@@ -28,6 +30,8 @@ def execute():
 	sms.auth_type = "None"
 	sms.content_type = "application/x-www-form-urlencoded"
 	sms.identifier_label = "Phone Number"
+	sms.user_field = "phone"
+	sms.identifier_placement = "Query Parameter"
 	sms.recipient_param = "mobiles"
 	sms.otp_param = "message"
 	sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"

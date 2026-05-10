@@ -38,6 +38,7 @@ def get_available_channels():
 			"name": "Email",
 			"label": "Email",
 			"identifier_label": "Email Address",
+			"user_field": settings.email_search_field or "email",
 		})
 
 	for c in settings.http_channels:
@@ -47,6 +48,7 @@ def get_available_channels():
 				"name": c.channel_name,
 				"label": c.channel_name,
 				"identifier_label": c.identifier_label or "Identifier",
+				"user_field": c.user_field or "email",
 			})
 
 	return channels
@@ -59,14 +61,25 @@ def send_otp(identifier: str, channel: str | None = None) -> dict:
 	if not check_rate_limit(identifier):
 		frappe.throw(_("Too many OTP requests. Please try again after 15 minutes."))
 
-	user = find_user_by_identifier(identifier)
+	settings = frappe.get_single("OTP Login Settings")
+
+	# Determine which User field to match against
+	user_field = None
+	if channel and channel != "Email":
+		for c in settings.http_channels:
+			if c.channel_name == channel:
+				user_field = c.user_field or "email"
+				break
+	elif channel == "Email" or (not channel and settings.email_enabled):
+		user_field = settings.email_search_field or "email"
+
+	user = find_user_by_identifier(identifier, user_field)
 	if not user:
 		return {"message": "OTP sent"}
 
 	otp = generate_otp()
 	store_otp(identifier, otp)
 
-	settings = frappe.get_single("OTP Login Settings")
 	sent = False
 
 	if channel == "Email" or (not channel and settings.email_enabled):
