@@ -2,10 +2,17 @@ import frappe
 from frappe.model.document import Document
 
 PREFIX = "otp_"
+STANDARD_USER_FIELDS = {"email", "username", "phone", "mobile_no", "first_name", "last_name", "full_name", "name"}
+
+
+def _is_standard(fieldname: str) -> bool:
+	return fieldname in STANDARD_USER_FIELDS
 
 
 def _prefixed(fieldname: str) -> str:
-	"""Add our app prefix so we can identify fields we own."""
+	"""Add prefix only for custom fields, leave standard fields as-is."""
+	if _is_standard(fieldname):
+		return fieldname
 	if fieldname.startswith(PREFIX):
 		return fieldname
 	return PREFIX + fieldname
@@ -17,10 +24,11 @@ class OTPLoginSettings(Document):
 		self.cleanup_orphaned_user_fields()
 
 	def ensure_user_fields_exist(self):
-		"""Create otp_-prefixed custom fields on User for each channel's user_field."""
 		for channel in self.http_channels:
 			fieldname = channel.user_field
 			if not fieldname:
+				continue
+			if _is_standard(fieldname):
 				continue
 			pf = _prefixed(fieldname)
 			if frappe.db.exists("Custom Field", {"dt": "User", "fieldname": pf}):
@@ -32,15 +40,12 @@ class OTPLoginSettings(Document):
 			)
 
 	def cleanup_orphaned_user_fields(self):
-		"""Remove otp_-prefixed User fields no longer referenced by any channel."""
 		active_prefixed = {_prefixed(c.user_field) for c in self.http_channels if c.user_field}
-
 		custom_fields = frappe.get_all(
 			"Custom Field",
 			filters={"dt": "User", "fieldname": ("like", PREFIX + "%")},
 			fields=["fieldname"],
 		)
-
 		for cf in custom_fields:
 			fn = cf.fieldname
 			if fn not in active_prefixed:
@@ -86,35 +91,7 @@ def _create_user_field(fieldname):
 		"insert_after": "mobile_no",
 		"translatable": 0,
 	}).insert(ignore_permissions=True)
-	_add_field_to_form_layout(fieldname)
-
-
-def _add_field_to_form_layout(fieldname):
-	try:
-		if frappe.db.exists("Customize Form", {"doc_type": "User"}):
-			cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
-		else:
-			cf = frappe.new_doc("Customize Form")
-			cf.doc_type = "User"
-		if not any(f.fieldname == fieldname for f in cf.fields):
-			cf.append("fields", {"fieldname": fieldname})
-			cf.save(ignore_permissions=True)
-			frappe.db.commit()
-	except Exception:
-		pass
 
 
 def _delete_user_field(fieldname):
 	frappe.db.delete("Custom Field", {"dt": "User", "fieldname": fieldname})
-	_remove_field_from_form_layout(fieldname)
-
-
-def _remove_field_from_form_layout(fieldname):
-	try:
-		if frappe.db.exists("Customize Form", {"doc_type": "User"}):
-			cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
-			cf.fields = [f for f in cf.fields if f.fieldname != fieldname]
-			cf.save(ignore_permissions=True)
-			frappe.db.commit()
-	except Exception:
-		pass

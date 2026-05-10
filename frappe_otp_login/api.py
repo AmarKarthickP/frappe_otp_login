@@ -66,11 +66,13 @@ def send_otp(identifier: str, channel: str | None = None) -> dict:
 	settings = frappe.get_single("OTP Login Settings")
 
 	# Determine which User field to match against
+	from frappe_otp_login.otp_login.doctype.otp_login_settings.otp_login_settings import _prefixed
+
 	user_field = None
 	if channel and channel != "Email":
 		for c in settings.http_channels:
 			if c.channel_name == channel:
-				user_field = "otp_" + (c.user_field or "email")
+				user_field = _prefixed(c.user_field or "email")
 				break
 	elif channel == "Email" or (not channel and settings.email_enabled):
 		user_field = settings.email_search_field or "email"
