@@ -95,7 +95,36 @@ def _create_user_field(fieldname):
 		"insert_after": "mobile_no",
 		"translatable": 0,
 	}).insert(ignore_permissions=True)
+	# Also add the field to the User form layout so it's editable
+	_add_field_to_form_layout(fieldname)
+
+
+def _add_field_to_form_layout(fieldname):
+	"""Ensure the custom field appears on the User form."""
+	try:
+		cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
+		if cf:
+			already = any(f.fieldname == fieldname for f in cf.fields)
+			if not already:
+				cf.append("fields", {"fieldname": fieldname})
+				cf.save()
+				frappe.db.commit()
+	except Exception:
+		pass  # Customize Form might not exist yet; field is still usable via API
 
 
 def _delete_user_field(fieldname):
 	frappe.db.delete("Custom Field", {"dt": "User", "fieldname": fieldname})
+	# Also remove from form layout
+	_remove_field_from_form_layout(fieldname)
+
+
+def _remove_field_from_form_layout(fieldname):
+	try:
+		cf = frappe.get_doc("Customize Form", {"doc_type": "User"})
+		if cf:
+			cf.fields = [f for f in cf.fields if f.fieldname != fieldname]
+			cf.save()
+			frappe.db.commit()
+	except Exception:
+		pass
