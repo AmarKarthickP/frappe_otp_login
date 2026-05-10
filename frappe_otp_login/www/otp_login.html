@@ -121,6 +121,7 @@ frappe.ready(function() {
 	let current_identifier = '';
 	let selected_channel = null;
 	let available_channels = [];
+	let resend_cooldown = 30;
 
 	function show_step(step_id) {
 		document.querySelectorAll('.otp-step').forEach(s => s.classList.remove('active'));
@@ -140,7 +141,7 @@ frappe.ready(function() {
 	}
 
 	function start_resend_timer() {
-		let seconds = 30;
+		let seconds = resend_cooldown;
 		const timer = document.getElementById('resend-timer');
 		const resend_section = document.getElementById('resend-section');
 		resend_section.classList.add('visible');
@@ -165,7 +166,8 @@ frappe.ready(function() {
 		type: 'GET',
 		callback: function(r) {
 			if (!r.exc && r.message) {
-				available_channels = r.message;
+				available_channels = r.message.channels || [];
+				resend_cooldown = r.message.resend_cooldown || 30;
 				render_channels();
 			}
 		}

@@ -28,9 +28,10 @@ def get_available_channels():
 
 	settings = frappe.get_single("OTP Login Settings")
 	if not settings.enabled:
-		return []
+		return {"channels": [], "resend_cooldown": 30}
 
 	channels = []
+	resend_cooldown = settings.get("resend_cooldown") or 30
 
 	if settings.email_enabled:
 		channels.append({
@@ -51,7 +52,7 @@ def get_available_channels():
 				"user_field": c.user_field or "email",
 			})
 
-	return channels
+	return {"channels": channels, "resend_cooldown": resend_cooldown}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
