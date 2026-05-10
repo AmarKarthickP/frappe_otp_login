@@ -2,35 +2,57 @@ import frappe
 
 
 def after_install():
-	"""Create OTP Login Settings singleton if it doesn't exist."""
-	if not frappe.db.exists("OTP Login Settings", "OTP Login Settings"):
-		settings = frappe.new_doc("OTP Login Settings")
-		settings.enabled = 1
-		settings.email_enabled = 1
-		settings.insert(ignore_permissions=True)
-		frappe.db.commit()
+	"""Create OTP Login Settings singleton with preset channels."""
+	if frappe.db.exists("OTP Login Settings", "OTP Login Settings"):
+		return
+
+	settings = frappe.new_doc("OTP Login Settings")
+	settings.enabled = 1
+	settings.email_enabled = 1
+	settings.email_search_field = "email"
+	settings.resend_cooldown = 30
+
+	# ntfy.sh — Raw text POST via URL Path
+	ntfy = settings.append("http_channels")
+	ntfy.channel_name = "ntfy.sh"
+	ntfy.enabled = 0
+	ntfy.method = "POST"
+	ntfy.url = "https://ntfy.sh/{{ identifier }}"
+	ntfy.auth_type = "None"
+	ntfy.identifier_label = "Subscribed Topic"
+	ntfy.user_field = "email"
+	ntfy.identifier_placement = "URL Path"
+	ntfy.content_type = "Raw (text/plain)"
+	ntfy.message_template = "Your OTP code is {{ otp }}"
+
+	# Generic Indian SMS Provider — GET with query params
+	sms = settings.append("http_channels")
+	sms.channel_name = "Generic Indian SMS Provider"
+	sms.enabled = 0
+	sms.method = "GET"
+	sms.url = "https://api.example.com/sendotp"
+	sms.auth_type = "None"
+	sms.content_type = "application/x-www-form-urlencoded"
+	sms.identifier_label = "Phone Number"
+	sms.user_field = "phone"
+	sms.identifier_placement = "Query Parameter"
+	sms.recipient_param = "mobiles"
+	sms.otp_param = "message"
+	sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"
+
+	settings.insert(ignore_permissions=True)
+	frappe.db.commit()
 
 
 def before_uninstall():
-	"""Cleanup before bench uninstall-app removes the app.
-
-	Frappe automatically drops all doctype tables and removes Module Def
-	records. We only need to handle things the framework doesn't know about.
-	"""
+	"""Cleanup before bench uninstall-app removes the app."""
 	clear_otp_redis_keys()
 	delete_desktop_icon()
 	delete_channel_user_fields()
 
 
 def clear_otp_redis_keys():
-	"""Remove OTP codes, rate-limit counters, and failure counters from Redis.
-
-	Uses raw Redis SCAN to find keys with the site-prefixed otp_login pattern.
-	Safe to call even if Redis is empty — SCAN returns nothing.
-
-	Note: frappe.cache.delete_value() doesn't support wildcards. We use the
-	raw redis-py client for pattern-based deletion.
-	"""
+	"""Remove OTP codes, rate-limit counters, and failure counters from Redis."""
 	try:
 		prefix = frappe.cache.make_key("otp_login")
 		cursor = 0
@@ -45,7 +67,6 @@ def clear_otp_redis_keys():
 		if deleted:
 			print(f"Cleared {deleted} OTP Redis keys")
 	except Exception:
-		# Redis might not be available during uninstall — non-fatal
 		pass
 
 
@@ -66,12 +87,6 @@ def delete_channel_user_fields():
 
 
 def delete_desktop_icon():
-	"""Remove the Desktop Icon that may have been created for this app.
-
-	Frappe *usually* handles this automatically during uninstall, but if the
-	icon was created manually or the auto-cleanup path is missed, this ensures
-	it's gone.
-	"""
 	try:
 		frappe.db.delete("Desktop Icon", {"app": "frappe_otp_login"})
 		frappe.db.commit()
