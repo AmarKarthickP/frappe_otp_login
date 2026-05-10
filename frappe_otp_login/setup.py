@@ -2,45 +2,51 @@ import frappe
 
 
 def after_install():
-	"""Create OTP Login Settings singleton with preset channels."""
+	"""Create OTP Login Settings singleton with preset channels.
+	Idempotent: safe to call multiple times."""
 	if frappe.db.exists("OTP Login Settings", "OTP Login Settings"):
-		return
+		settings = frappe.get_single("OTP Login Settings")
+	else:
+		settings = frappe.new_doc("OTP Login Settings")
 
-	settings = frappe.new_doc("OTP Login Settings")
+	settings = frappe.get_single("OTP Login Settings")
 	settings.enabled = 1
 	settings.email_enabled = 1
 	settings.email_search_field = "email"
 	settings.resend_cooldown = 30
 
-	# ntfy.sh — Raw text POST via URL Path
-	ntfy = settings.append("http_channels")
-	ntfy.channel_name = "ntfy.sh"
-	ntfy.enabled = 0
-	ntfy.method = "POST"
-	ntfy.url = "https://ntfy.sh/{{ identifier }}"
-	ntfy.auth_type = "None"
-	ntfy.identifier_label = "Subscribed Topic"
-	ntfy.user_field = "email"
-	ntfy.identifier_placement = "URL Path"
-	ntfy.content_type = "Raw (text/plain)"
-	ntfy.message_template = "Your OTP code is {{ otp }}"
+	# Add preset channels only if none exist (idempotent)
+	existing_names = {c.channel_name for c in settings.http_channels}
 
-	# Generic Indian SMS Provider — GET with query params
-	sms = settings.append("http_channels")
-	sms.channel_name = "Generic Indian SMS Provider"
-	sms.enabled = 0
-	sms.method = "GET"
-	sms.url = "https://api.example.com/sendotp"
-	sms.auth_type = "None"
-	sms.content_type = "application/x-www-form-urlencoded"
-	sms.identifier_label = "Phone Number"
-	sms.user_field = "phone"
-	sms.identifier_placement = "Query Parameter"
-	sms.recipient_param = "mobiles"
-	sms.otp_param = "message"
-	sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"
+	if "ntfy.sh" not in existing_names:
+		ntfy = settings.append("http_channels")
+		ntfy.channel_name = "ntfy.sh"
+		ntfy.enabled = 0
+		ntfy.method = "POST"
+		ntfy.url = "https://ntfy.sh/{{ identifier }}"
+		ntfy.auth_type = "None"
+		ntfy.identifier_label = "Subscribed Topic"
+		ntfy.user_field = "email"
+		ntfy.identifier_placement = "URL Path"
+		ntfy.content_type = "Raw (text/plain)"
+		ntfy.message_template = "Your OTP code is {{ otp }}"
 
-	settings.insert(ignore_permissions=True)
+	if "Generic Indian SMS Provider" not in existing_names:
+		sms = settings.append("http_channels")
+		sms.channel_name = "Generic Indian SMS Provider"
+		sms.enabled = 0
+		sms.method = "GET"
+		sms.url = "https://api.example.com/sendotp"
+		sms.auth_type = "None"
+		sms.content_type = "application/x-www-form-urlencoded"
+		sms.identifier_label = "Phone Number"
+		sms.user_field = "phone"
+		sms.identifier_placement = "Query Parameter"
+		sms.recipient_param = "mobiles"
+		sms.otp_param = "message"
+		sms.message_template = "{{ otp }} is your OTP for {{ site_name }}"
+
+	settings.save(ignore_permissions=True)
 	frappe.db.commit()
 
 
