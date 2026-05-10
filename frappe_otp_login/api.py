@@ -8,6 +8,7 @@ from frappe_otp_login.utils import (
 	find_user_by_identifier,
 	generate_otp,
 	get_stored_otp,
+	get_stored_user,
 	send_otp_email,
 	send_otp_http,
 	store_otp,
@@ -79,7 +80,7 @@ def send_otp(identifier: str, channel: str | None = None) -> dict:
 		return {"message": "OTP sent"}
 
 	otp = generate_otp()
-	store_otp(identifier, otp)
+	store_otp(identifier, otp, user)
 
 	sent = False
 
@@ -128,7 +129,7 @@ def verify_otp(identifier: str, otp: str) -> dict:
 
 	delete_stored_otp(identifier)
 
-	user = find_user_by_identifier(identifier)
+	user = get_stored_user(identifier)
 	if not user:
 		frappe.throw(_("User not found."))
 

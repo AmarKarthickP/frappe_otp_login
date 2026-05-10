@@ -6,6 +6,7 @@
  "field_order": [
   "enabled",
   "resend_cooldown",
+  "disable_rate_limit",
   "email_enabled",
   "email_search_field",
   "email_section",
@@ -30,6 +31,13 @@
    "fieldtype": "Int",
    "label": "Resend Cooldown (seconds)",
    "description": "How long the user must wait before requesting a new OTP"
+  },
+  {
+   "default": "0",
+   "fieldname": "disable_rate_limit",
+   "fieldtype": "Check",
+   "label": "Disable Rate Limit",
+   "description": "Disable the 5-per-15min rate limit (e.g., during development or testing)"
   },
   {
    "default": "1",

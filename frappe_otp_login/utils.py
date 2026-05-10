@@ -8,12 +8,23 @@ def generate_otp() -> str:
 	return str(random.randint(100000, 999999))
 
 
-def store_otp(identifier: str, otp: str, expiry: int = 300) -> None:
-	frappe.cache.set_value(f"otp_login:{identifier}", otp, expires_in_sec=expiry)
+def store_otp(identifier: str, otp: str, user: str = "", expiry: int = 300) -> None:
+	data = {"otp": otp, "user": user}
+	frappe.cache.set_value(f"otp_login:{identifier}", data, expires_in_sec=expiry)
 
 
 def get_stored_otp(identifier: str) -> str | None:
-	return frappe.cache.get_value(f"otp_login:{identifier}")
+	data = frappe.cache.get_value(f"otp_login:{identifier}")
+	if isinstance(data, dict):
+		return data.get("otp")
+	return data
+
+
+def get_stored_user(identifier: str) -> str | None:
+	data = frappe.cache.get_value(f"otp_login:{identifier}")
+	if isinstance(data, dict):
+		return data.get("user")
+	return None
 
 
 def delete_stored_otp(identifier: str) -> None:

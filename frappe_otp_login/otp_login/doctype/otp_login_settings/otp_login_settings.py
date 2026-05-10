@@ -92,6 +92,7 @@ def _create_user_field(fieldname):
 		"fieldname": fieldname,
 		"label": fieldname.replace("_", " ").title(),
 		"fieldtype": "Data",
+		"unique": 1,
 		"insert_after": "mobile_no",
 		"translatable": 0,
 	}).insert(ignore_permissions=True)
