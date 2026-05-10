@@ -19,6 +19,7 @@ def before_uninstall():
 	"""
 	clear_otp_redis_keys()
 	delete_desktop_icon()
+	delete_channel_user_fields()
 
 
 def clear_otp_redis_keys():
@@ -45,6 +46,22 @@ def clear_otp_redis_keys():
 			print(f"Cleared {deleted} OTP Redis keys")
 	except Exception:
 		# Redis might not be available during uninstall — non-fatal
+		pass
+
+
+def delete_channel_user_fields():
+	"""Remove custom User fields created for HTTP channel identifiers."""
+	try:
+		settings = frappe.get_single("OTP Login Settings")
+		for channel in settings.http_channels:
+			fieldname = channel.user_field
+			if fieldname and fieldname not in (
+				"email", "username", "phone", "mobile_no",
+				"first_name", "last_name", "full_name", "name",
+			):
+				frappe.db.delete("Custom Field", {"dt": "User", "fieldname": fieldname})
+		frappe.db.commit()
+	except Exception:
 		pass
 
 
