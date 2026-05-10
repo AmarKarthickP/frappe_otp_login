@@ -78,9 +78,9 @@ class OTPLoginSettings(Document):
 
 
 def _is_standard_user_field(fieldname):
-	"""Standard User fields should not be deleted."""
-	standard = frappe.get_meta("User").get_field(fieldname)
-	return bool(standard)
+	"""Return True if fieldname is a built-in User field (not a custom one we created)."""
+	# Built-in fields are in the JSON schema, custom fields are in tabCustom Field
+	return not frappe.db.exists("Custom Field", {"dt": "User", "fieldname": fieldname})
 
 
 def _create_user_field(fieldname):
