@@ -121,8 +121,7 @@ function open_channel_dialog(frm, existing_row) {
 				frm.add_child("http_channels", values);
 			}
 			frm.fields_dict.http_channels.grid.refresh();
-			d.hide();
-			frm.save();
+			frm.save().then(() => d.hide());
 		},
 	});
 
