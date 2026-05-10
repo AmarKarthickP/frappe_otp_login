@@ -10,13 +10,18 @@ Users log in with just their email, username, or phone number + a one-time verif
 - **HTTP channel OTP** — send codes via any HTTP API (SMS gateways, ntfy.sh, custom providers)
 - **Channel selection UX** — users pick how to receive the OTP when multiple channels are enabled
 - **Email as a peer channel** — enable/disable email independently, just like any HTTP channel
-- **Flexible identifier** — lookup by email, username, phone, or mobile number
+- **Per-channel identifier lookup** — each channel specifies which User field to match against (email, phone, or custom)
 - **Per-channel identifier label** — configure what each channel asks for ("Email Address", "Phone Number", "Subscribed Topic")
-- **Rate limiting** — max 5 OTP requests per identifier per 15 minutes
+- **Identifier placement** — controls how the identifier is sent (URL Path, Query Param, POST Param, or Message Template)
+- **`{{ identifier }}` URL templating** — embed the user's input directly in the endpoint URL
+- **Auto-create User fields** — custom identifier fields are auto-created on the User doctype with `otp_` prefix
+- **Configurable resend cooldown** — set the seconds before a user can request a new OTP (default 30)
+- **Toggleable rate limiting** — disable the 5-per-15min limit during development
+- **Rate limiting** — max 5 OTP requests per identifier per 15 minutes (configurable)
 - **Brute-force protection** — max 5 failed verification attempts per OTP
-- **Anti-enumeration** — returns success even if the user doesn't exist
-- **Desk configuration page** — modal dialogs for channel setup, SMTP status display
-- **Clean uninstall** — removes Redis keys and Desktop Icon on `bench uninstall-app`
+- **Anti-enumeration** — shows "If your details exist, you will receive an OTP" regardless of match
+- **Desk configuration page** — modal dialogs for channel setup, SMTP status display, 4-column grid
+- **Clean uninstall** — removes Redis keys, custom User fields, Desktop Icon on `bench uninstall-app`
 
 ## Install
 
@@ -71,11 +76,12 @@ User visits /otp_login
 
 Both endpoints are guest-accessible (`@frappe.whitelist(allow_guest=True)`).
 
-| Endpoint | Method | Parameters | Description |
-|---|---|---|---|
-| `frappe_otp_login.api.get_available_channels` | GET | — | Returns list of enabled OTP channels |
-| `frappe_otp_login.api.send_otp` | POST | `identifier`, `channel` (optional) | Sends a 6-digit OTP |
-| `frappe_otp_login.api.verify_otp` | POST | `identifier`, `otp` | Verifies the OTP and creates a session |
+| Endpoint | Method | Body | Description |
+|---|---|---|---|---|
+| `frappe_otp_login.api.get_available_channels` | GET | — | Returns `{channels, resend_cooldown}` for the login page |
+| `frappe_otp_login.api.send_otp` | POST | `{"identifier","channel?"}` | Sends OTP. `channel` optional — uses all enabled if omitted |
+| `frappe_otp_login.api.send_otp_via_channel` | POST | `{"identifier","channel"}` | Send OTP via a specific channel |
+| `frappe_otp_login.api.verify_otp` | POST | `{"identifier","otp"}` | Verifies OTP and creates session |
 
 ## HTTP Channels
 
@@ -90,15 +96,17 @@ Each channel is configured via a modal dialog in **OTP Login Settings** with:
 | Channel Name | Display name (e.g., "MSG91", "ntfy.sh") |
 | Enabled | Toggle to enable/disable this channel |
 | Identifier Label | What the input field asks for ("Email Address", "Phone Number", "Subscribed Topic") |
+| Match User By | Fieldname on the User doc to match (e.g., `email`, `phone`, `ntfy_topic`). Custom fields auto-created with `otp_` prefix |
 | Method | GET or POST |
-| URL | API endpoint URL (must start with `http://` or `https://`) |
+| URL | API endpoint URL. Use `{{ identifier }}` as placeholder for the user's input |
+| Identifier Placement | How the identifier is sent: URL Path, Query Parameter, POST Parameter, or Message Template |
 | Content Type | `application/json`, `application/x-www-form-urlencoded`, or `Raw (text/plain)` |
 | Auth Type | None, Bearer, Basic, or API Key |
 | Auth Token | Bearer token or API key value (stored encrypted) |
 | Auth Username / Password | Credentials for Basic auth (stored encrypted) |
-| OTP Parameter Name | Field name for the OTP code in the request |
-| Recipient Parameter Name | Field name for the recipient identifier |
-| Message Template | Jinja template with `{{ otp }}`, `{{ recipient }}`, `{{ site_name }}` |
+| Recipient Parameter Name | Key name for the identifier (only for Query/POST placement) |
+| OTP Parameter Name | Key name for the OTP code in the request |
+| Message Template | Jinja template with `{{ otp }}`, `{{ identifier }}`, `{{ site_name }}` |
 | Parameters | Extra key-value pairs (query params, form fields, headers) |
 
 ### Preset Channels
