@@ -20,6 +20,20 @@ def has_app_permission():
 	return "System Manager" in frappe.get_roles()
 
 
+def _get_or_create_api_keys(user: str):
+	"""Return existing API key/secret for user, or generate a new pair."""
+	api_key = frappe.db.get_value("User", user, "api_key")
+	api_secret = frappe.get_cached_value("User", user, "api_secret")
+	if api_key and api_secret:
+		return api_key, api_secret
+	from frappe.core.doctype.user.user import generate_keys
+	generate_keys(user)
+	frappe.db.commit()
+	api_key = frappe.db.get_value("User", user, "api_key")
+	api_secret = frappe.db.get_value("User", user, "api_secret")
+	return api_key, api_secret
+
+
 @frappe.whitelist(allow_guest=True)
 def get_available_channels():
 	"""Return list of enabled OTP channels for the login page."""
@@ -146,4 +160,13 @@ def verify_otp(identifier: str, otp: str) -> dict:
 	frappe.local.login_manager = LoginManager()
 	frappe.local.login_manager.login_as(user)
 
-	return {"message": "Logged In", "redirect_to": "/desk"}
+	# Generate API key/secret for token-based auth
+	api_key, api_secret = _get_or_create_api_keys(user)
+
+	return {
+		"message": "Logged In",
+		"redirect_to": "/desk",
+		"api_key": api_key,
+		"api_secret": api_secret,
+		"token": f"token {api_key}:{api_secret}",
+	}
