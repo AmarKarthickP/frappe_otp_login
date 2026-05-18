@@ -160,12 +160,23 @@ def verify_otp(identifier: str, otp: str) -> dict:
 	frappe.local.login_manager = LoginManager()
 	frappe.local.login_manager.login_as(user)
 
+	# Mark email as verified — OTP is proof of email ownership
+	if frappe.db.get_value("User", user, "email"):
+		frappe.db.set_value("User", user, "email_verified", 1)
+
+	# Determine redirect: Website Users → portal, System Users → desk
+	user_type = frappe.db.get_value("User", user, "user_type")
+	if user_type == "Website User":
+		redirect_to = frappe.get_website_settings("home_page") or "/"
+	else:
+		redirect_to = "/desk"
+
 	# Generate API key/secret for token-based auth
 	api_key, api_secret = _get_or_create_api_keys(user)
 
 	return {
 		"message": "Logged In",
-		"redirect_to": "/desk",
+		"redirect_to": redirect_to,
 		"api_key": api_key,
 		"api_secret": api_secret,
 		"token": f"token {api_key}:{api_secret}",
